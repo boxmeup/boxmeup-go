@@ -1,4 +1,4 @@
-package main
+package models
 
 import (
 	"time"
@@ -14,4 +14,19 @@ type User struct {
 	ResetPassword bool
 	Created       time.Time `json:"created"`
 	Modified      time.Time `json:"modified"`
+}
+
+type FilteredUser struct {
+	ID    int32  `json:"id"`
+	Email string `json:"email"`
+	UUID  string `json:"uuid"`
+}
+
+func (user User) ToSafeUser() FilteredUser {
+	newUser := FilteredUser{
+		ID:    user.ID,
+		Email: user.Email,
+		UUID:  user.UUID,
+	}
+	return newUser
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cjsaylor/boxmeup-go/models"
 	"github.com/gorilla/mux"
 )
 
@@ -12,7 +13,7 @@ func Index(res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	res.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	res.WriteHeader(http.StatusOK)
-	user := User{
+	user := models.User{
 		ID:            10,
 		Email:         vars["email"],
 		Password:      "blah",
@@ -21,7 +22,7 @@ func Index(res http.ResponseWriter, req *http.Request) {
 		Created:       time.Now(),
 		Modified:      time.Now(),
 	}
-	if err := json.NewEncoder(res).Encode(user); err != nil {
+	if err := json.NewEncoder(res).Encode(user.ToSafeUser()); err != nil {
 		panic(err)
 	}
 }
