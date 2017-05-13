@@ -58,14 +58,34 @@ func Login(db *sql.DB, config AuthConfig, email string, password string) (string
 	return token.SignedString([]byte(config.JWTSecret))
 }
 
+// ValidateAndDecodeAuthClaim will ensure the token provided was signed by us and decode its contents
+func ValidateAndDecodeAuthClaim(token string, config AuthConfig) (jwt.MapClaims, error) {
+	t, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		// Verify the algorhythm matches what we original signed
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(config.JWTSecret), nil
+	})
+	return t.Claims.(jwt.MapClaims), err
+}
+
 // GetUserByID resolves with a user on the channel.
-func GetUserByID(db *sql.DB, ID int) (User, error) {
+func GetUserByID(db *sql.DB, ID int64) (User, error) {
 	user := User{}
 	q := `
 		select id, email, password, uuid, is_active, reset_password, created, modified
 		from users where id = ?
 	`
-	err := db.QueryRow(q, ID).Scan(&user.ID, &user.Email, &user.Password, &user.UUID, &user.IsActive, &user.ResetPassword, &user.Created, &user.Modified)
+	err := db.QueryRow(q, ID).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Password,
+		&user.UUID,
+		&user.IsActive,
+		&user.ResetPassword,
+		&user.Created,
+		&user.Modified)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// user not found
