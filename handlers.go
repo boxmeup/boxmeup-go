@@ -20,6 +20,31 @@ func IndexHandler(res http.ResponseWriter, req *http.Request) {
 	fmt.Fprint(res, "Welcome!")
 }
 
+// Login handler authenticates via email and password
+func LoginHandler(res http.ResponseWriter, req *http.Request) {
+	db, _ := GetDBResource()
+	env := EnvConfig()
+
+	token, err := models.Login(
+		db,
+		models.AuthConfig{
+			LegacySalt: env.LegacySalt,
+			JWTSecret:  env.JWTSecret,
+		},
+		req.PostFormValue("email"),
+		req.PostFormValue("password"))
+	jsonOut := json.NewEncoder(res)
+	if err != nil {
+		res.WriteHeader(http.StatusUnauthorized)
+		jsonOut.Encode(jsonErrorResponse{-1, "Authentication failure."})
+	} else {
+		res.WriteHeader(http.StatusOK)
+		jsonOut.Encode(map[string]string{
+			"token": token,
+		})
+	}
+}
+
 // UserHandler is a route handler for getting specific user information
 func UserHandler(res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)

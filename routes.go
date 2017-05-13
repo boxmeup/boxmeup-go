@@ -29,6 +29,12 @@ var routes = Routes{
 		http.HandlerFunc(IndexHandler),
 	},
 	Route{
+		"Login",
+		"POST",
+		"/login",
+		jsonResponseHandler(http.HandlerFunc(LoginHandler)),
+	},
+	Route{
 		"User",
 		"GET",
 		"/user/{id}",
