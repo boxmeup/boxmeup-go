@@ -15,7 +15,7 @@ type jsonErrorResponse struct {
 	Text string `json:"text"`
 }
 
-// Welcome page
+// IndexHandler serves the static page
 func IndexHandler(res http.ResponseWriter, req *http.Request) {
 	fmt.Fprint(res, "Welcome!")
 }
@@ -42,6 +42,7 @@ func UserHandler(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// CreateContainerHandler allows creation of a container from a POST method
 func CreateContainerHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := GetDBResource()
 	defer db.Close()
