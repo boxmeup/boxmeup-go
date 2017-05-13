@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
 	"strconv"
 
 	"github.com/cjsaylor/boxmeup-go/models"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 )
 
@@ -45,33 +47,13 @@ func LoginHandler(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// UserHandler is a route handler for getting specific user information
-func UserHandler(res http.ResponseWriter, req *http.Request) {
-	vars := mux.Vars(req)
-	db, err := GetDBResource()
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
-	id, err := strconv.Atoi(vars["id"])
-	if err != nil {
-		panic(err)
-	}
-	user, err := models.GetUserByID(db, id)
-	if err != nil {
-		res.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(res).Encode(jsonErrorResponse{-1, "User not found."})
-	} else {
-		res.WriteHeader(http.StatusOK)
-		json.NewEncoder(res).Encode(user)
-	}
-}
-
 // CreateContainerHandler allows creation of a container from a POST method
+// Expected body:
+//   name
 func CreateContainerHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := GetDBResource()
 	defer db.Close()
-	userID, _ := strconv.Atoi(req.PostFormValue("user_id"))
+	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
 	user, err := models.GetUserByID(db, userID)
 	jsonOut := json.NewEncoder(res)
 	if err != nil {
@@ -89,10 +71,30 @@ func CreateContainerHandler(res http.ResponseWriter, req *http.Request) {
 		jsonOut.Encode(jsonErrorResponse{-2, "Failed to create the container."})
 	} else {
 		res.WriteHeader(http.StatusOK)
-		json.NewEncoder(res).Encode(struct {
-			ID int64 `json:"id"`
-		}{
-			ID: container.ID,
+		jsonOut.Encode(map[string]int64{
+			"id": container.ID,
 		})
 	}
+}
+
+func ContainerHandler(res http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	db, _ := GetDBResource()
+	defer db.Close()
+	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
+	containerID, _ := strconv.Atoi(vars["id"])
+	container, err := models.ContainerbyID(db, int64(containerID))
+	jsonOut := json.NewEncoder(res)
+	if err != nil {
+		res.WriteHeader(http.StatusNotFound)
+		jsonOut.Encode(jsonErrorResponse{-1, "Container not found."})
+		return
+	}
+	if container.User.ID != userID {
+		res.WriteHeader(http.StatusForbidden)
+		jsonOut.Encode(jsonErrorResponse{-2, "Not allowed to view this container."})
+		return
+	}
+	res.WriteHeader(http.StatusOK)
+	jsonOut.Encode(container)
 }

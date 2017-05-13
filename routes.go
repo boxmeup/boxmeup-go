@@ -1,6 +1,13 @@
 package main
 
-import "net/http"
+import (
+	"context"
+	"net/http"
+	"strings"
+
+	"github.com/cjsaylor/boxmeup-go/models"
+	chain "github.com/justinas/alice"
+)
 
 // Route defines a route
 type Route struct {
@@ -21,6 +28,34 @@ func jsonResponseHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+func authHandler(next http.Handler) http.Handler {
+	fn := func(res http.ResponseWriter, req *http.Request) {
+		authHeader := req.Header.Get("Authorization")
+		if authHeader == "" {
+			http.Error(res, "Authorization required.", 403)
+			return
+		}
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			http.Error(res, "Authorization header must be in the form of: Bearer {token}", 403)
+			return
+		}
+		authConfig := models.AuthConfig{
+			JWTSecret: EnvConfig().JWTSecret,
+		}
+		claims, err := models.ValidateAndDecodeAuthClaim(parts[1], authConfig)
+		if err != nil {
+			http.Error(res, err.Error(), 403)
+			return
+		}
+		newRequest := req.WithContext(context.WithValue(req.Context(), "user", claims))
+		*req = *newRequest
+		next.ServeHTTP(res, req)
+		return
+	}
+	return http.HandlerFunc(fn)
+}
+
 var routes = Routes{
 	Route{
 		"Index",
@@ -32,18 +67,18 @@ var routes = Routes{
 		"Login",
 		"POST",
 		"/login",
-		jsonResponseHandler(http.HandlerFunc(LoginHandler)),
-	},
-	Route{
-		"User",
-		"GET",
-		"/user/{id}",
-		jsonResponseHandler(http.HandlerFunc(UserHandler)),
+		chain.New(jsonResponseHandler).ThenFunc(LoginHandler),
 	},
 	Route{
 		"CreateContainer",
 		"POST",
 		"/container",
-		jsonResponseHandler(http.HandlerFunc(CreateContainerHandler)),
+		chain.New(authHandler, jsonResponseHandler).ThenFunc(CreateContainerHandler),
+	},
+	Route{
+		"Container",
+		"GET",
+		"/container/{id}",
+		chain.New(authHandler, jsonResponseHandler).ThenFunc(ContainerHandler),
 	},
 }
