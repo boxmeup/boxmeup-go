@@ -13,14 +13,6 @@ type Container struct {
 	Modified time.Time `json:"modified,omitempty"`
 }
 
-// NewContainerFromMap will get a container struct from provided map.
-func NewContainerFromMap(user User, params map[string]string) Container {
-	return Container{
-		User: user,
-		Name: params["name"],
-	}
-}
-
 // CreateContainer persists a container to the database
 func CreateContainer(db *sql.DB, container *Container) error {
 	q := `
