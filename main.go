@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 )
 
 func main() {
 	router := NewRouter()
-	log.Fatal(http.ListenAndServe(":8080", router))
+	env := EnvConfig()
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port), router))
 }
