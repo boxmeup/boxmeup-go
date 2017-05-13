@@ -19,7 +19,8 @@ func Index(res http.ResponseWriter, req *http.Request) {
 		IsActive:      true,
 		ResetPassword: false,
 		Created:       time.Now(),
-		Modified:      time.Now()}
+		Modified:      time.Now(),
+	}
 	if err := json.NewEncoder(res).Encode(user); err != nil {
 		panic(err)
 	}
