@@ -2,16 +2,20 @@ package main
 
 import (
 	"encoding/json"
-	"net/http"
-
-	"strconv"
-
 	"fmt"
+	"net/http"
+	"strconv"
 
 	"github.com/cjsaylor/boxmeup-go/models"
 	"github.com/gorilla/mux"
 )
 
+type jsonErrorResponse struct {
+	Code int    `json:"code"`
+	Text string `json:"text"`
+}
+
+// Welcome page
 func IndexHandler(res http.ResponseWriter, req *http.Request) {
 	fmt.Fprint(res, "Welcome!")
 }
@@ -28,17 +32,41 @@ func UserHandler(res http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	result := make(chan models.UserResult)
-	go models.GetUserById(db, id, result)
-	user := <-result
-	if user.Error != nil {
+	user, err := models.GetUserByID(db, id)
+	if err != nil {
 		res.WriteHeader(http.StatusNotFound)
-		fmt.Fprint(res, "User not found")
+		json.NewEncoder(res).Encode(jsonErrorResponse{-1, "User not found."})
 	} else {
-		res.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		res.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(res).Encode(user.User); err != nil {
-			panic(err)
-		}
+		json.NewEncoder(res).Encode(user)
+	}
+}
+
+func CreateContainerHandler(res http.ResponseWriter, req *http.Request) {
+	db, _ := GetDBResource()
+	defer db.Close()
+	userID, _ := strconv.Atoi(req.PostFormValue("user_id"))
+	user, err := models.GetUserByID(db, userID)
+	jsonOut := json.NewEncoder(res)
+	if err != nil {
+		res.WriteHeader(http.StatusNotFound)
+		jsonOut.Encode(jsonErrorResponse{-1, "User specified not found."})
+		return
+	}
+	container := models.Container{
+		User: user,
+		Name: req.PostFormValue("name"),
+	}
+	err = models.CreateContainer(db, &container)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		jsonOut.Encode(jsonErrorResponse{-2, "Failed to create the container."})
+	} else {
+		res.WriteHeader(http.StatusOK)
+		json.NewEncoder(res).Encode(struct {
+			ID int64 `json:"id"`
+		}{
+			ID: container.ID,
+		})
 	}
 }

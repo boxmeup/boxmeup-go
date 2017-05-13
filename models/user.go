@@ -18,13 +18,8 @@ type User struct {
 	Modified      time.Time `json:"modified"`
 }
 
-// UserResult is for channel responses
-type UserResult struct {
-	User  User
-	Error error
-}
-
-func GetUserById(db *sql.DB, ID int, result chan<- UserResult) {
+// GetUserByID resolves with a user on the channel.
+func GetUserByID(db *sql.DB, ID int) (User, error) {
 	user := User{}
 	q := `
 		select id, email, password, uuid, is_active, reset_password, created, modified
@@ -39,9 +34,5 @@ func GetUserById(db *sql.DB, ID int, result chan<- UserResult) {
 			log.Fatal(err)
 		}
 	}
-
-	result <- UserResult{
-		User:  user,
-		Error: err,
-	}
+	return user, err
 }
