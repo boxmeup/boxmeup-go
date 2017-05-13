@@ -52,8 +52,8 @@ func Login(db *sql.DB, config AuthConfig, email string, password string) (string
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"id":   ID,
 		"uuid": UUID,
-		// 5 day expiration
-		"nbf": time.Now().AddDate(0, 0, 5).Unix(),
+		"nbf":  time.Now().Unix(),
+		"exp":  time.Now().AddDate(0, 0, 5).Unix(),
 	})
 	return token.SignedString([]byte(config.JWTSecret))
 }
