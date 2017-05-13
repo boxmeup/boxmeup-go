@@ -9,6 +9,11 @@
 			"Rev": "7110c4e2f569e729e19ad2d89fb3b5e3d159d8ca"
 		},
 		{
+			"ImportPath": "github.com/go-sql-driver/mysql",
+			"Comment": "v1.3-16-g3361273",
+			"Rev": "336127359b09c9c8164e39c4c44f4d36ef081dc8"
+		},
+		{
 			"ImportPath": "github.com/gorilla/mux",
 			"Comment": "v1.3.0-6-g4c1c395",
 			"Rev": "4c1c3952b7d9d0a061a3fa7b36fd373ba0398ebc"
