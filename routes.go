@@ -17,7 +17,13 @@ var routes = Routes{
 	Route{
 		"Index",
 		"GET",
-		"/{email}",
-		Index,
+		"/",
+		IndexHandler,
+	},
+	Route{
+		"User",
+		"GET",
+		"/user/{id}",
+		UserHandler,
 	},
 }
