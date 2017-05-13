@@ -8,7 +8,8 @@ import (
 
 // Config is a placeholder for available configurations
 type Config struct {
-	Port int `env:"PORT" envDefault:"8080"`
+	Port     int    `env:"PORT" envDefault:"8080"`
+	MysqlDSN string `env:"MYSQL_DSN" envDefault:"guest:guest@tcp(guest:3306)/bmu"`
 }
 
 // EnvConfig returns a config struct with values prepopulated from ENV
