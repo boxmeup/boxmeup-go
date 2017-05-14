@@ -17,7 +17,7 @@ type Config struct {
 var config Config
 
 func init() {
-	config := Config{}
+	config = Config{}
 	err := env.Parse(&config)
 	if err != nil {
 		fmt.Printf("%+v\n", err)
