@@ -8,6 +8,5 @@ import (
 
 func main() {
 	router := NewRouter()
-	env := EnvConfig()
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", env.Port), router))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", config.Port), router))
 }

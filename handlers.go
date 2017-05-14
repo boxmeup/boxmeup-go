@@ -25,13 +25,12 @@ func IndexHandler(res http.ResponseWriter, req *http.Request) {
 // LoginHandler authenticates via email and password
 func LoginHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := GetDBResource()
-	env := EnvConfig()
 
 	userModel := models.UserStore{DB: db}
 	token, err := userModel.Login(
 		models.AuthConfig{
-			LegacySalt: env.LegacySalt,
-			JWTSecret:  env.JWTSecret,
+			LegacySalt: config.LegacySalt,
+			JWTSecret:  config.JWTSecret,
 		},
 		req.PostFormValue("email"),
 		req.PostFormValue("password"))

@@ -41,7 +41,7 @@ func authHandler(next http.Handler) http.Handler {
 			return
 		}
 		authConfig := models.AuthConfig{
-			JWTSecret: EnvConfig().JWTSecret,
+			JWTSecret: config.JWTSecret,
 		}
 		claims, err := models.ValidateAndDecodeAuthClaim(parts[1], authConfig)
 		if err != nil {

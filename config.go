@@ -14,12 +14,12 @@ type Config struct {
 	JWTSecret  string `env:"JWT_SECRET,required"`
 }
 
-// EnvConfig returns a config struct with values prepopulated from ENV
-func EnvConfig() Config {
-	cfg := Config{}
-	err := env.Parse(&cfg)
+var config Config
+
+func init() {
+	config := Config{}
+	err := env.Parse(&config)
 	if err != nil {
 		fmt.Printf("%+v\n", err)
 	}
-	return cfg
 }
