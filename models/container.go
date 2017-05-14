@@ -14,21 +14,25 @@ type Container struct {
 	Modified time.Time `json:"modified"`
 }
 
-// CreateContainer persists a container to the database
-func CreateContainer(db *sql.DB, container *Container) error {
+// ContainerStore helps store and retrieve
+type ContainerStore struct {
+	DB *sql.DB
+}
+
+// Create persists a container to the database
+func (c *ContainerStore) Create(container *Container) error {
 	q := `
 		insert into containers (user_id, location_id, name, uuid, created, modified)
 		values (?, ?, ?, uuid(), now(), now())
 	`
-
-	res, err := db.Exec(q, container.User.ID, container.Location.ID, container.Name)
+	res, err := c.DB.Exec(q, container.User.ID, container.Location.ID, container.Name)
 	container.ID, _ = res.LastInsertId()
 
 	return err
 }
 
-// ContainerbyID retrieves a container by its primary ID
-func ContainerbyID(db *sql.DB, ID int64) (Container, error) {
+// ByID retrieves a container by its primary ID
+func (c *ContainerStore) ByID(ID int64) (Container, error) {
 	var userID int64
 	var locationID int64
 	q := `
@@ -37,11 +41,12 @@ func ContainerbyID(db *sql.DB, ID int64) (Container, error) {
 		where id = ?
 	`
 	var container Container
-	err := db.QueryRow(q, ID).Scan(&container.ID, &userID, &locationID, &container.Name, &container.UUID, &container.Created, &container.Modified)
+	err := c.DB.QueryRow(q, ID).Scan(&container.ID, &userID, &locationID, &container.Name, &container.UUID, &container.Created, &container.Modified)
 	if err != nil {
 		return container, err
 	}
-	container.User, err = GetUserByID(db, userID)
+	userModel := UserStore{DB: c.DB}
+	container.User, err = userModel.ByID(userID)
 
 	return container, err
 }

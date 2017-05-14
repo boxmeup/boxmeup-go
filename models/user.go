@@ -23,6 +23,12 @@ type User struct {
 	Modified      time.Time `json:"modified"`
 }
 
+// UserStore is a persistence structure to get and store users.
+type UserStore struct {
+	DB *sql.DB
+}
+
+// AuthConfig is configuration used for authorization operations
 type AuthConfig struct {
 	LegacySalt string
 	JWTSecret  string
@@ -34,14 +40,14 @@ func hashPassword(config AuthConfig, password string) string {
 }
 
 // Login authenticates user credentials and produces a signed JWT
-func Login(db *sql.DB, config AuthConfig, email string, password string) (string, error) {
+func (s *UserStore) Login(config AuthConfig, email string, password string) (string, error) {
 	hashedPassword := hashPassword(config, password)
 	var ID int
 	var UUID string
 	q := `
 		select id, uuid from users where email = ? and password = ?
 	`
-	err := db.QueryRow(q, email, hashedPassword).Scan(&ID, &UUID)
+	err := s.DB.QueryRow(q, email, hashedPassword).Scan(&ID, &UUID)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			log.Fatal(err)
@@ -70,14 +76,14 @@ func ValidateAndDecodeAuthClaim(token string, config AuthConfig) (jwt.MapClaims,
 	return t.Claims.(jwt.MapClaims), err
 }
 
-// GetUserByID resolves with a user on the channel.
-func GetUserByID(db *sql.DB, ID int64) (User, error) {
+// ByID resolves with a user on the channel.
+func (s *UserStore) ByID(ID int64) (User, error) {
 	user := User{}
 	q := `
 		select id, email, password, uuid, is_active, reset_password, created, modified
 		from users where id = ?
 	`
-	err := db.QueryRow(q, ID).Scan(
+	err := s.DB.QueryRow(q, ID).Scan(
 		&user.ID,
 		&user.Email,
 		&user.Password,

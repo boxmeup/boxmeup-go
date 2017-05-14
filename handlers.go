@@ -22,13 +22,13 @@ func IndexHandler(res http.ResponseWriter, req *http.Request) {
 	fmt.Fprint(res, "Welcome!")
 }
 
-// Login handler authenticates via email and password
+// LoginHandler authenticates via email and password
 func LoginHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := GetDBResource()
 	env := EnvConfig()
 
-	token, err := models.Login(
-		db,
+	userModel := models.UserStore{DB: db}
+	token, err := userModel.Login(
 		models.AuthConfig{
 			LegacySalt: env.LegacySalt,
 			JWTSecret:  env.JWTSecret,
@@ -54,7 +54,8 @@ func CreateContainerHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := GetDBResource()
 	defer db.Close()
 	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
-	user, err := models.GetUserByID(db, userID)
+	userModel := models.UserStore{DB: db}
+	user, err := userModel.ByID(userID)
 	jsonOut := json.NewEncoder(res)
 	if err != nil {
 		res.WriteHeader(http.StatusNotFound)
@@ -65,7 +66,8 @@ func CreateContainerHandler(res http.ResponseWriter, req *http.Request) {
 		User: user,
 		Name: req.PostFormValue("name"),
 	}
-	err = models.CreateContainer(db, &container)
+	containerModel := models.ContainerStore{DB: db}
+	err = containerModel.Create(&container)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		jsonOut.Encode(jsonErrorResponse{-2, "Failed to create the container."})
@@ -83,7 +85,8 @@ func ContainerHandler(res http.ResponseWriter, req *http.Request) {
 	defer db.Close()
 	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
 	containerID, _ := strconv.Atoi(vars["id"])
-	container, err := models.ContainerbyID(db, int64(containerID))
+	containerModel := models.ContainerStore{DB: db}
+	container, err := containerModel.ByID(int64(containerID))
 	jsonOut := json.NewEncoder(res)
 	if err != nil {
 		res.WriteHeader(http.StatusNotFound)
