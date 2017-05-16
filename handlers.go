@@ -130,3 +130,82 @@ func ContainersHandler(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusOK)
 	jsonOut.Encode(response)
 }
+
+// CreateContainerItemHandler allows creation of a container from a POST method
+// Expected body:
+//   body
+//   quantity
+func CreateContainerItemHandler(res http.ResponseWriter, req *http.Request) {
+	db, _ := GetDBResource()
+	defer db.Close()
+	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
+	jsonOut := json.NewEncoder(res)
+	containerModel := models.ContainerStore{DB: db}
+	vars := mux.Vars(req)
+	containerID, _ := strconv.Atoi(vars["id"])
+	container, err := containerModel.ByID(int64(containerID))
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		jsonOut.Encode(jsonErrorResponse{-1, "Failed to retrieve the container."})
+		return
+	}
+	if container.User.ID != userID {
+		res.WriteHeader(http.StatusForbidden)
+		jsonOut.Encode(jsonErrorResponse{-2, "Not allowed to modify this container."})
+		return
+	}
+	itemModel := models.ContainerItemStore{DB: db}
+	quantity, _ := strconv.Atoi(req.PostFormValue("quantity"))
+	item := models.ContainerItem{
+		Container: &container,
+		Body:      req.PostFormValue("body"),
+		Quantity:  quantity,
+	}
+	err = itemModel.Create(&item)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		jsonOut.Encode(jsonErrorResponse{-3, "Unable to create container item"})
+		return
+	}
+	res.WriteHeader(http.StatusOK)
+	jsonOut.Encode(map[string]int64{
+		"id": item.ID,
+	})
+}
+
+// ContainerItemsHandler is an interface into items of a container
+// @todo Consider syncing some of the non-related queries to go routines
+func ContainerItemsHandler(res http.ResponseWriter, req *http.Request) {
+	db, _ := GetDBResource()
+	defer db.Close()
+	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
+	jsonOut := json.NewEncoder(res)
+	containerModel := models.ContainerStore{DB: db}
+	vars := mux.Vars(req)
+	containerID, _ := strconv.Atoi(vars["id"])
+	container, err := containerModel.ByID(int64(containerID))
+	if err != nil {
+		res.WriteHeader(http.StatusNotFound)
+		jsonOut.Encode(jsonErrorResponse{-1, "Container not found."})
+		return
+	}
+	if container.User.ID != userID {
+		res.WriteHeader(http.StatusForbidden)
+		jsonOut.Encode(jsonErrorResponse{-2, "Not allowed to view items in this container."})
+		return
+	}
+	params := req.URL.Query()
+	var limit models.QueryLimit
+	page, _ := strconv.Atoi(params.Get("page"))
+	limit.SetPage(page, models.ContainerQueryLimit)
+	itemModel := models.ContainerItemStore{DB: db}
+	sort := itemModel.GetSortBy(params.Get("sort_field"), models.SortType(params.Get("sort_dir")))
+	response, err := itemModel.GetContainerItems(&container, sort, limit)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		jsonOut.Encode(jsonErrorResponse{-3, "Unable to retrieve container items."})
+		return
+	}
+	res.WriteHeader(http.StatusOK)
+	jsonOut.Encode(response)
+}

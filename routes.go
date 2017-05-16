@@ -87,4 +87,16 @@ var routes = Routes{
 		"/container",
 		chain.New(authHandler, jsonResponseHandler).ThenFunc(ContainersHandler),
 	},
+	Route{
+		"CreateContainerItem",
+		"POST",
+		"/container/{id}/item",
+		chain.New(authHandler, jsonResponseHandler).ThenFunc(CreateContainerItemHandler),
+	},
+	Route{
+		"Items",
+		"GET",
+		"/container/{id}/item",
+		chain.New(authHandler, jsonResponseHandler).ThenFunc(ContainerItemsHandler),
+	},
 }
