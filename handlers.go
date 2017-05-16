@@ -131,11 +131,11 @@ func ContainersHandler(res http.ResponseWriter, req *http.Request) {
 	jsonOut.Encode(response)
 }
 
-// CreateContainerItemHandler allows creation of a container from a POST method
+// SaveContainerItemHandler allows creation of a container from a POST method
 // Expected body:
 //   body
 //   quantity
-func CreateContainerItemHandler(res http.ResponseWriter, req *http.Request) {
+func SaveContainerItemHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := GetDBResource()
 	defer db.Close()
 	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
@@ -156,15 +156,33 @@ func CreateContainerItemHandler(res http.ResponseWriter, req *http.Request) {
 	}
 	itemModel := models.ContainerItemStore{DB: db}
 	quantity, _ := strconv.Atoi(req.PostFormValue("quantity"))
-	item := models.ContainerItem{
-		Container: &container,
-		Body:      req.PostFormValue("body"),
-		Quantity:  quantity,
+	var item models.ContainerItem
+	if _, ok := vars["item_id"]; ok {
+		itemID, _ := strconv.Atoi(vars["item_id"])
+		item, err = itemModel.ByID(int64(itemID))
+		if err != nil {
+			jsonOut.Encode(jsonErrorResponse{-3, "Unable to retrieve item to modify."})
+		}
+	} else {
+		item = models.ContainerItem{}
+		item.Container = &container
 	}
-	err = itemModel.Create(&item)
+	if quantity > 0 {
+		item.Quantity = quantity
+	}
+	if body := req.PostFormValue("body"); body != "" {
+		item.Body = body
+	}
+	if _, ok := vars["item_id"]; ok {
+		itemID, _ := strconv.Atoi(vars["item_id"])
+		item.ID = int64(itemID)
+		err = itemModel.Update(item)
+	} else {
+		err = itemModel.Create(&item)
+	}
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
-		jsonOut.Encode(jsonErrorResponse{-3, "Unable to create container item"})
+		jsonOut.Encode(jsonErrorResponse{-4, "Unable to create container item"})
 		return
 	}
 	res.WriteHeader(http.StatusOK)

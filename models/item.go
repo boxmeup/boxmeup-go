@@ -55,23 +55,46 @@ func (c *ContainerItemStore) Create(item *ContainerItem) error {
 }
 
 // Update a container item
-func (c *ContainerItemStore) Update(item *ContainerItem) error {
+func (c *ContainerItemStore) Update(item ContainerItem) error {
 	if item.ID == 0 {
 		return errors.New("can not update an item without it first being persisted")
 	}
 	q := `
-		update container_items set body = ?, quantity = ?
+		update container_items set body = ?, quantity = ?, modified = now()
 		where id = ?
 	`
 	_, err := c.DB.Exec(q, item.Body, item.Quantity, item.ID)
 	return err
 }
 
+// ContainerItems is a collection of container items.
 type ContainerItems []ContainerItem
 
+// ContainerItemsResponse is a response object that contains items and paginated meta.
 type ContainerItemsResponse struct {
 	Items         ContainerItems `json:"items"`
 	PagedResponse PagedResponse  `json:"paged_response"`
+}
+
+// ByID retrieves an item by its ID
+func (c *ContainerItemStore) ByID(ID int64) (ContainerItem, error) {
+	q := `
+		select id, container_id, uuid, body, quantity, created, modified
+		from container_items
+		where id = ?
+	`
+	item := ContainerItem{}
+	var containerID int64
+	err := c.DB.QueryRow(q, ID).Scan(&item.ID, &containerID, &item.UUID, &item.Body, &item.Quantity, &item.Created, &item.Modifed)
+	if err != nil {
+		return item, err
+	}
+	containerModel := ContainerStore{DB: c.DB}
+	container, err := containerModel.ByID(containerID)
+	if err == nil {
+		item.Container = &container
+	}
+	return item, err
 }
 
 // GetContainerItems retrieves all items (paginated) from a container
