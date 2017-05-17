@@ -67,6 +67,13 @@ func (c *ContainerItemStore) Update(item ContainerItem) error {
 	return err
 }
 
+// Delete removes an item from a container
+func (c *ContainerItemStore) Delete(ID string) error {
+	q := "delete container_items where id = ?"
+	_, err := c.DB.Exec(q, ID)
+	return err
+}
+
 // ContainerItems is a collection of container items.
 type ContainerItems []ContainerItem
 
