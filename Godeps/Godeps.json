@@ -27,6 +27,18 @@
 			"ImportPath": "github.com/justinas/alice",
 			"Comment": "1.0.0-16-g1051eaf",
 			"Rev": "1051eaf52fcafdd87ead59d28b065f1fcb8274ec"
+		},
+		{
+			"ImportPath": "github.com/skip2/go-qrcode",
+			"Rev": "0bb60b5a716144fa55da373bab578cca49a537d7"
+		},
+		{
+			"ImportPath": "github.com/skip2/go-qrcode/bitset",
+			"Rev": "0bb60b5a716144fa55da373bab578cca49a537d7"
+		},
+		{
+			"ImportPath": "github.com/skip2/go-qrcode/reedsolomon",
+			"Rev": "0bb60b5a716144fa55da373bab578cca49a537d7"
 		}
 	]
 }
