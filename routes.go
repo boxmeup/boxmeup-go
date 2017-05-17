@@ -105,4 +105,10 @@ var routes = Routes{
 		"/container/{id}/item",
 		chain.New(authHandler, jsonResponseHandler).ThenFunc(ContainerItemsHandler),
 	},
+	Route{
+		"ContainerQR",
+		"GET",
+		"/container/{id}/qrcode",
+		http.HandlerFunc(ContainerQR),
+	},
 }
