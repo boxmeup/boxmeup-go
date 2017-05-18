@@ -57,12 +57,20 @@ func (c *Store) ByID(ID int64) (Container, error) {
 	var userID int64
 	var locationID int64
 	q := `
-		select id, user_id, location_id, name, uuid, created, modified
+		select id, user_id, location_id, name, uuid, container_item_count, created, modified
 		from containers
 		where id = ?
 	`
 	var container Container
-	err := c.DB.QueryRow(q, ID).Scan(&container.ID, &userID, &locationID, &container.Name, &container.UUID, &container.Created, &container.Modified)
+	err := c.DB.QueryRow(q, ID).Scan(
+		&container.ID,
+		&userID,
+		&locationID,
+		&container.Name,
+		&container.UUID,
+		&container.ContainerItemCount,
+		&container.Created,
+		&container.Modified)
 	if err != nil {
 		return container, err
 	}
@@ -81,7 +89,7 @@ type PagedResponse struct {
 // UserContainers will get all containers belonging to a user
 func (c *Store) UserContainers(user users.User, sort models.SortBy, limit models.QueryLimit) (PagedResponse, error) {
 	q := `
-		select SQL_CALC_FOUND_ROWS id, location_id, name, uuid, created, modified
+		select SQL_CALC_FOUND_ROWS id, location_id, name, uuid, container_item_count, created, modified
 		from containers
 		where user_id = ?
 		order by %v %v
@@ -97,7 +105,14 @@ func (c *Store) UserContainers(user users.User, sort models.SortBy, limit models
 	var locationID int64
 	for rows.Next() {
 		container := Container{}
-		rows.Scan(&container.ID, &locationID, &container.Name, &container.UUID, &container.Created, &container.Modified)
+		rows.Scan(
+			&container.ID,
+			&locationID,
+			&container.Name,
+			&container.UUID,
+			&container.ContainerItemCount,
+			&container.Created,
+			&container.Modified)
 		response.Containers = append(response.Containers, container)
 	}
 	response.PagedResponse.RequestTotal = len(response.Containers)

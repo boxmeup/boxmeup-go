@@ -105,6 +105,12 @@ var routes = Routes{
 		chain.New(authHandler, jsonResponseHandler).ThenFunc(ContainerItemsHandler),
 	},
 	Route{
+		"DeleteItems",
+		"DELETE",
+		"/container/{id}/item/{item_id}",
+		chain.New(authHandler, jsonResponseHandler).ThenFunc(DeleteContainerItem),
+	},
+	Route{
 		"ContainerQR",
 		"GET",
 		"/container/{id}/qrcode",

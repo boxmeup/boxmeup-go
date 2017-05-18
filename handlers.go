@@ -227,9 +227,38 @@ func ContainerItemsHandler(res http.ResponseWriter, req *http.Request) {
 	jsonOut.Encode(response)
 }
 
+func DeleteContainerItem(res http.ResponseWriter, req *http.Request) {
+	db, _ := GetDBResource()
+	defer db.Close()
+	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
+	jsonOut := json.NewEncoder(res)
+	vars := mux.Vars(req)
+	itemID, _ := strconv.Atoi(vars["item_id"])
+	itemModel := items.NewStore(db)
+	item, err := itemModel.ByID(int64(itemID))
+	if err != nil {
+		res.WriteHeader(http.StatusNotFound)
+		jsonOut.Encode(jsonErrorResponse{-1, "Item not found."})
+		return
+	}
+	if item.Container.User.ID != userID {
+		res.WriteHeader(http.StatusForbidden)
+		jsonOut.Encode(jsonErrorResponse{-2, "Not allowed to delete this item."})
+		return
+	}
+	err = itemModel.Delete(item)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		jsonOut.Encode(jsonErrorResponse{-3, "Unable to delete this item."})
+		return
+	}
+	res.WriteHeader(http.StatusNoContent)
+}
+
 // ContainerQR will output a QR code png for a specific container.
 func ContainerQR(res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
+	// @todo Figure out where this will direct to in the SPA.
 	qrBytes, _ := qrcode.Encode(fmt.Sprintf("%v/container/%v", config.WebHost, vars["id"]), qrcode.Medium, 250)
 	res.Write(qrBytes)
 }
