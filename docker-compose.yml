@@ -1,0 +1,25 @@
+version: "3"
+
+services:
+  mysql:
+    image: mysql:5.6
+    env_file: .env
+    networks:
+      - bmu-nw
+    ports:
+      - 3306:3306
+    restart: always
+  app:
+    build: .
+    env_file: .env
+    networks:
+      - bmu-nw
+    ports:
+      - 8080:8080
+    depends_on:
+      - mysql
+    restart: always
+
+networks:
+  bmu-nw:
+    driver: bridge
