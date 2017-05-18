@@ -8,6 +8,9 @@ import (
 	"strconv"
 
 	"github.com/cjsaylor/boxmeup-go/models"
+	"github.com/cjsaylor/boxmeup-go/models/containers"
+	"github.com/cjsaylor/boxmeup-go/models/items"
+	"github.com/cjsaylor/boxmeup-go/models/users"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	qrcode "github.com/skip2/go-qrcode"
@@ -27,9 +30,8 @@ func IndexHandler(res http.ResponseWriter, req *http.Request) {
 func LoginHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := GetDBResource()
 
-	userModel := models.UserStore{DB: db}
-	token, err := userModel.Login(
-		models.AuthConfig{
+	token, err := users.NewStore(db).Login(
+		users.AuthConfig{
 			LegacySalt: config.LegacySalt,
 			JWTSecret:  config.JWTSecret,
 		},
@@ -54,20 +56,18 @@ func CreateContainerHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := GetDBResource()
 	defer db.Close()
 	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
-	userModel := models.UserStore{DB: db}
-	user, err := userModel.ByID(userID)
+	user, err := users.NewStore(db).ByID(userID)
 	jsonOut := json.NewEncoder(res)
 	if err != nil {
 		res.WriteHeader(http.StatusNotFound)
 		jsonOut.Encode(jsonErrorResponse{-1, "User specified not found."})
 		return
 	}
-	container := models.Container{
+	container := containers.Container{
 		User: user,
 		Name: req.PostFormValue("name"),
 	}
-	containerModel := models.ContainerStore{DB: db}
-	err = containerModel.Create(&container)
+	err = containers.NewStore(db).Create(&container)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		jsonOut.Encode(jsonErrorResponse{-2, "Failed to create the container."})
@@ -86,8 +86,7 @@ func ContainerHandler(res http.ResponseWriter, req *http.Request) {
 	defer db.Close()
 	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
 	containerID, _ := strconv.Atoi(vars["id"])
-	containerModel := models.ContainerStore{DB: db}
-	container, err := containerModel.ByID(int64(containerID))
+	container, err := containers.NewStore(db).ByID(int64(containerID))
 	jsonOut := json.NewEncoder(res)
 	if err != nil {
 		res.WriteHeader(http.StatusNotFound)
@@ -108,7 +107,7 @@ func ContainersHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := GetDBResource()
 	defer db.Close()
 	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
-	userModel := models.UserStore{DB: db}
+	userModel := users.NewStore(db)
 	user, err := userModel.ByID(userID)
 	jsonOut := json.NewEncoder(res)
 	if err != nil {
@@ -119,8 +118,8 @@ func ContainersHandler(res http.ResponseWriter, req *http.Request) {
 	params := req.URL.Query()
 	var limit models.QueryLimit
 	page, _ := strconv.Atoi(params.Get("page"))
-	limit.SetPage(page, models.ContainerQueryLimit)
-	containerModel := models.ContainerStore{DB: db}
+	limit.SetPage(page, containers.QueryLimit)
+	containerModel := containers.NewStore(db)
 	sort := containerModel.GetSortBy(params.Get("sort_field"), models.SortType(params.Get("sort_dir")))
 	response, err := containerModel.UserContainers(user, sort, limit)
 	if err != nil {
@@ -141,10 +140,9 @@ func SaveContainerItemHandler(res http.ResponseWriter, req *http.Request) {
 	defer db.Close()
 	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
 	jsonOut := json.NewEncoder(res)
-	containerModel := models.ContainerStore{DB: db}
 	vars := mux.Vars(req)
 	containerID, _ := strconv.Atoi(vars["id"])
-	container, err := containerModel.ByID(int64(containerID))
+	container, err := containers.NewStore(db).ByID(int64(containerID))
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		jsonOut.Encode(jsonErrorResponse{-1, "Failed to retrieve the container."})
@@ -155,9 +153,9 @@ func SaveContainerItemHandler(res http.ResponseWriter, req *http.Request) {
 		jsonOut.Encode(jsonErrorResponse{-2, "Not allowed to modify this container."})
 		return
 	}
-	itemModel := models.ContainerItemStore{DB: db}
+	itemModel := items.NewStore(db)
 	quantity, _ := strconv.Atoi(req.PostFormValue("quantity"))
-	var item models.ContainerItem
+	var item items.ContainerItem
 	if _, ok := vars["item_id"]; ok {
 		itemID, _ := strconv.Atoi(vars["item_id"])
 		item, err = itemModel.ByID(int64(itemID))
@@ -165,8 +163,9 @@ func SaveContainerItemHandler(res http.ResponseWriter, req *http.Request) {
 			jsonOut.Encode(jsonErrorResponse{-3, "Unable to retrieve item to modify."})
 		}
 	} else {
-		item = models.ContainerItem{}
-		item.Container = &container
+		item = items.ContainerItem{
+			Container: &container,
+		}
 	}
 	if quantity > 0 {
 		item.Quantity = quantity
@@ -199,10 +198,9 @@ func ContainerItemsHandler(res http.ResponseWriter, req *http.Request) {
 	defer db.Close()
 	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
 	jsonOut := json.NewEncoder(res)
-	containerModel := models.ContainerStore{DB: db}
 	vars := mux.Vars(req)
 	containerID, _ := strconv.Atoi(vars["id"])
-	container, err := containerModel.ByID(int64(containerID))
+	container, err := containers.NewStore(db).ByID(int64(containerID))
 	if err != nil {
 		res.WriteHeader(http.StatusNotFound)
 		jsonOut.Encode(jsonErrorResponse{-1, "Container not found."})
@@ -216,8 +214,8 @@ func ContainerItemsHandler(res http.ResponseWriter, req *http.Request) {
 	params := req.URL.Query()
 	var limit models.QueryLimit
 	page, _ := strconv.Atoi(params.Get("page"))
-	limit.SetPage(page, models.ContainerQueryLimit)
-	itemModel := models.ContainerItemStore{DB: db}
+	limit.SetPage(page, containers.QueryLimit)
+	itemModel := items.NewStore(db)
 	sort := itemModel.GetSortBy(params.Get("sort_field"), models.SortType(params.Get("sort_dir")))
 	response, err := itemModel.GetContainerItems(&container, sort, limit)
 	if err != nil {

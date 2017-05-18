@@ -1,31 +1,23 @@
-package models
+package users
 
 import (
+	"crypto/sha1"
 	"database/sql"
 	"fmt"
 	"log"
 	"time"
 
-	"crypto/sha1"
-
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go"
 )
 
-// User is a user entity structure
-type User struct {
-	ID            int64     `json:"id"`
-	Email         string    `json:"email"`
-	Password      string    `json:"-"`
-	UUID          string    `json:"uuid"`
-	IsActive      bool      `json:"is_active"`
-	ResetPassword bool      `json:"-"`
-	Created       time.Time `json:"created"`
-	Modified      time.Time `json:"modified"`
+// Store is a persistence structure to get and store users.
+type Store struct {
+	DB *sql.DB
 }
 
-// UserStore is a persistence structure to get and store users.
-type UserStore struct {
-	DB *sql.DB
+// NewStore constructs a storage interface for users.
+func NewStore(db *sql.DB) *Store {
+	return &Store{DB: db}
 }
 
 // AuthConfig is configuration used for authorization operations
@@ -40,7 +32,7 @@ func hashPassword(config AuthConfig, password string) string {
 }
 
 // Login authenticates user credentials and produces a signed JWT
-func (s *UserStore) Login(config AuthConfig, email string, password string) (string, error) {
+func (s *Store) Login(config AuthConfig, email string, password string) (string, error) {
 	hashedPassword := hashPassword(config, password)
 	var ID int
 	var UUID string
@@ -77,7 +69,7 @@ func ValidateAndDecodeAuthClaim(token string, config AuthConfig) (jwt.MapClaims,
 }
 
 // ByID resolves with a user on the channel.
-func (s *UserStore) ByID(ID int64) (User, error) {
+func (s *Store) ByID(ID int64) (User, error) {
 	user := User{}
 	q := `
 		select id, email, password, uuid, is_active, reset_password, created, modified

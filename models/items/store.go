@@ -1,49 +1,45 @@
-package models
+package items
 
 import (
 	"database/sql"
 	"errors"
 	"fmt"
 	"log"
-	"time"
+
+	"github.com/cjsaylor/boxmeup-go/models"
+	"github.com/cjsaylor/boxmeup-go/models/containers"
 )
 
-// ContainerItem represents a single item in a container
-type ContainerItem struct {
-	ID        int64      `json:"id"`
-	Container *Container `json:"-"`
-	UUID      string     `json:"uuid"`
-	Body      string     `json:"body"`
-	Quantity  int        `json:"quantity"`
-	Created   time.Time  `json:"created"`
-	Modifed   time.Time  `json:"modifed"`
-}
-
-// ContainerItemStore persists and queries container items
-type ContainerItemStore struct {
+// Store persists and queries container items
+type Store struct {
 	DB *sql.DB
 }
 
+// NewStore constructs a storage interface for items.
+func NewStore(db *sql.DB) *Store {
+	return &Store{DB: db}
+}
+
 // GetSortBy will retrieve a SortBy object taylored for container queries
-func (c *ContainerItemStore) GetSortBy(field string, direction SortType) SortBy {
+func (c *Store) GetSortBy(field string, direction models.SortType) models.SortBy {
 	sortable := map[string]string{"modified": "modified", "body": "body", "quantity": "quantity"}
-	var sort SortBy
+	var sort models.SortBy
 	if _, ok := sortable[field]; ok {
 		sort.Field = field
 	} else {
 		sort.Field = "modified"
 	}
-	if direction == ASC {
-		sort.Direction = ASC
+	if direction == models.ASC {
+		sort.Direction = models.ASC
 	} else {
-		sort.Direction = DSC
+		sort.Direction = models.DSC
 	}
 
 	return sort
 }
 
 // Create will persist a given container item.
-func (c *ContainerItemStore) Create(item *ContainerItem) error {
+func (c *Store) Create(item *ContainerItem) error {
 	q := `
 		insert into container_items (container_id, uuid, body, quantity, created, modified)
 		values(?, uuid(), ?, ?, now(), now())
@@ -55,7 +51,7 @@ func (c *ContainerItemStore) Create(item *ContainerItem) error {
 }
 
 // Update a container item
-func (c *ContainerItemStore) Update(item ContainerItem) error {
+func (c *Store) Update(item ContainerItem) error {
 	if item.ID == 0 {
 		return errors.New("can not update an item without it first being persisted")
 	}
@@ -68,23 +64,20 @@ func (c *ContainerItemStore) Update(item ContainerItem) error {
 }
 
 // Delete removes an item from a container
-func (c *ContainerItemStore) Delete(ID string) error {
+func (c *Store) Delete(ID string) error {
 	q := "delete container_items where id = ?"
 	_, err := c.DB.Exec(q, ID)
 	return err
 }
 
-// ContainerItems is a collection of container items.
-type ContainerItems []ContainerItem
-
-// ContainerItemsResponse is a response object that contains items and paginated meta.
-type ContainerItemsResponse struct {
-	Items         ContainerItems `json:"items"`
-	PagedResponse PagedResponse  `json:"paged_response"`
+// PagedResponse is a response object that contains items and paginated meta.
+type PagedResponse struct {
+	Items         ContainerItems       `json:"items"`
+	PagedResponse models.PagedResponse `json:"paged_response"`
 }
 
 // ByID retrieves an item by its ID
-func (c *ContainerItemStore) ByID(ID int64) (ContainerItem, error) {
+func (c *Store) ByID(ID int64) (ContainerItem, error) {
 	q := `
 		select id, container_id, uuid, body, quantity, created, modified
 		from container_items
@@ -96,8 +89,7 @@ func (c *ContainerItemStore) ByID(ID int64) (ContainerItem, error) {
 	if err != nil {
 		return item, err
 	}
-	containerModel := ContainerStore{DB: c.DB}
-	container, err := containerModel.ByID(containerID)
+	container, err := containers.NewStore(c.DB).ByID(containerID)
 	if err == nil {
 		item.Container = &container
 	}
@@ -105,7 +97,7 @@ func (c *ContainerItemStore) ByID(ID int64) (ContainerItem, error) {
 }
 
 // GetContainerItems retrieves all items (paginated) from a container
-func (c *ContainerItemStore) GetContainerItems(container *Container, sort SortBy, limit QueryLimit) (ContainerItemsResponse, error) {
+func (c *Store) GetContainerItems(container *containers.Container, sort models.SortBy, limit models.QueryLimit) (PagedResponse, error) {
 	q := `
 		select id, uuid, body, quantity, created, modified
 		from container_items
@@ -119,7 +111,7 @@ func (c *ContainerItemStore) GetContainerItems(container *Container, sort SortBy
 		log.Fatal(err)
 	}
 	defer rows.Close()
-	response := ContainerItemsResponse{}
+	response := PagedResponse{}
 	for rows.Next() {
 		item := ContainerItem{}
 		rows.Scan(&item.ID, &item.UUID, &item.Body, &item.Quantity, &item.Created, &item.Modifed)

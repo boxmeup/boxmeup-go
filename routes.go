@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/cjsaylor/boxmeup-go/models"
+	"github.com/cjsaylor/boxmeup-go/models/users"
 	chain "github.com/justinas/alice"
 )
 
@@ -40,10 +40,9 @@ func authHandler(next http.Handler) http.Handler {
 			http.Error(res, "Authorization header must be in the form of: Bearer {token}", 403)
 			return
 		}
-		authConfig := models.AuthConfig{
+		claims, err := users.ValidateAndDecodeAuthClaim(parts[1], users.AuthConfig{
 			JWTSecret: config.JWTSecret,
-		}
-		claims, err := models.ValidateAndDecodeAuthClaim(parts[1], authConfig)
+		})
 		if err != nil {
 			http.Error(res, err.Error(), 403)
 			return
