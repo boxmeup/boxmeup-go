@@ -13,7 +13,7 @@ func GetDBResource() (*sql.DB, error) {
 	db, err := sql.Open("mysql", fmt.Sprintf("%v?parseTime=true", config.MysqlDSN))
 	err = db.Ping()
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	return db, nil
 }
