@@ -104,6 +104,67 @@ func CreateContainerHandler(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// UpdateContainerHandler exposes updating a container
+// @todo add support for updating the location ID
+func UpdateContainerHandler(res http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	db, _ := GetDBResource()
+	defer db.Close()
+	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
+	containerModel := containers.NewStore(db)
+	containerID, _ := strconv.Atoi(vars["id"])
+	container, err := containerModel.ByID(int64(containerID))
+	jsonOut := json.NewEncoder(res)
+	if err != nil {
+		res.WriteHeader(http.StatusNotFound)
+		jsonOut.Encode(jsonErrorResponse{-1, "Container not found."})
+		return
+	}
+	if container.User.ID != userID {
+		res.WriteHeader(http.StatusForbidden)
+		jsonOut.Encode(jsonErrorResponse{-2, "Not allowed to edit this container."})
+		return
+	}
+	if name := req.PostFormValue("name"); name != "" {
+		container.Name = name
+	}
+	err = containerModel.Update(&container)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		jsonOut.Encode(jsonErrorResponse{-3, "Error updating the container."})
+		return
+	}
+	res.WriteHeader(http.StatusNoContent)
+}
+
+func DeleteContainerHandler(res http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	db, _ := GetDBResource()
+	defer db.Close()
+	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
+	containerModel := containers.NewStore(db)
+	containerID, _ := strconv.Atoi(vars["id"])
+	container, err := containerModel.ByID(int64(containerID))
+	jsonOut := json.NewEncoder(res)
+	if err != nil {
+		res.WriteHeader(http.StatusNotFound)
+		jsonOut.Encode(jsonErrorResponse{-1, "Container not found."})
+		return
+	}
+	if container.User.ID != userID {
+		res.WriteHeader(http.StatusForbidden)
+		jsonOut.Encode(jsonErrorResponse{-2, "Not allowed to edit this container."})
+		return
+	}
+	err = containerModel.Delete(int64(containerID))
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		jsonOut.Encode(jsonErrorResponse{-3, "Error deleting container."})
+		return
+	}
+	res.WriteHeader(http.StatusNoContent)
+}
+
 // ContainerHandler gets a specific container by ID
 func ContainerHandler(res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
@@ -252,7 +313,8 @@ func ContainerItemsHandler(res http.ResponseWriter, req *http.Request) {
 	jsonOut.Encode(response)
 }
 
-func DeleteContainerItem(res http.ResponseWriter, req *http.Request) {
+// DeleteContainerItemHandler will remove an item from a container and update the container count.
+func DeleteContainerItemHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := GetDBResource()
 	defer db.Close()
 	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))

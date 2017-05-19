@@ -20,6 +20,8 @@ type Route struct {
 // Routes is a collection of routes
 type Routes []Route
 
+type userKey string
+
 func jsonResponseHandler(next http.Handler) http.Handler {
 	fn := func(res http.ResponseWriter, req *http.Request) {
 		res.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -47,7 +49,8 @@ func authHandler(next http.Handler) http.Handler {
 			http.Error(res, err.Error(), 403)
 			return
 		}
-		newRequest := req.WithContext(context.WithValue(req.Context(), "user", claims))
+		var userKey userKey = "user"
+		newRequest := req.WithContext(context.WithValue(req.Context(), userKey, claims))
 		*req = *newRequest
 		next.ServeHTTP(res, req)
 		return
@@ -69,10 +72,28 @@ var routes = Routes{
 		chain.New(jsonResponseHandler).ThenFunc(LoginHandler),
 	},
 	Route{
+		"Register",
+		"POST",
+		"/register",
+		chain.New(jsonResponseHandler).ThenFunc(RegisterHandler),
+	},
+	Route{
 		"CreateContainer",
 		"POST",
 		"/container",
 		chain.New(authHandler, jsonResponseHandler).ThenFunc(CreateContainerHandler),
+	},
+	Route{
+		"UpdateContainer",
+		"PUT",
+		"/container/{id}",
+		chain.New(authHandler, jsonResponseHandler).ThenFunc(UpdateContainerHandler),
+	},
+	Route{
+		"DeleteContainer",
+		"DELETE",
+		"/container/{id}",
+		chain.New(authHandler, jsonResponseHandler).ThenFunc(DeleteContainerHandler),
 	},
 	Route{
 		"Container",
@@ -108,7 +129,7 @@ var routes = Routes{
 		"DeleteItems",
 		"DELETE",
 		"/container/{id}/item/{item_id}",
-		chain.New(authHandler, jsonResponseHandler).ThenFunc(DeleteContainerItem),
+		chain.New(authHandler, jsonResponseHandler).ThenFunc(DeleteContainerItemHandler),
 	},
 	Route{
 		"ContainerQR",

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 
+	"errors"
+
 	"github.com/cjsaylor/boxmeup-go/models"
 	"github.com/cjsaylor/boxmeup-go/models/users"
 )
@@ -49,6 +51,30 @@ func (c *Store) Create(container *Container) error {
 	res, err := c.DB.Exec(q, container.User.ID, container.Location.ID, container.Name)
 	container.ID, _ = res.LastInsertId()
 
+	return err
+}
+
+// Update a container
+// @todo add support for location updating
+func (c *Store) Update(container *Container) error {
+	if container.ID == 0 {
+		return errors.New("can not update a container without it first being persisted")
+	}
+	q := `
+		update container set name = ?, modified = now()
+		where id = ?
+	`
+	_, err := c.DB.Exec(q, container.Name, container.ID)
+	return err
+}
+
+// Delete will remove a container by its ID.
+// Note that due to the FK constrant set to cascade on deletion, this will
+// delete all the related items as well.
+func (c *Store) Delete(ID int64) error {
+	// Note, the FK has cascade deletion, so this will delete the items as well.
+	q := "delete from containers where id = ?"
+	_, err := c.DB.Exec(q, ID)
 	return err
 }
 
