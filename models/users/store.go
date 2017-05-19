@@ -3,6 +3,7 @@ package users
 import (
 	"crypto/sha1"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -54,6 +55,30 @@ func (s *Store) Login(config AuthConfig, email string, password string) (string,
 		"exp":  time.Now().AddDate(0, 0, 5).Unix(),
 	})
 	return token.SignedString([]byte(config.JWTSecret))
+}
+
+// Register creates a new user in the system.
+// @todo Replace shitty password hashing with a more robust mechanism (bcrypt)
+func (s *Store) Register(config AuthConfig, email string, password string) (id int64, err error) {
+	if s.doesUserExistByEmail(email) {
+		return 0, errors.New("user already exists with given email")
+	}
+	hashedPassword := hashPassword(config, password)
+	q := `
+		insert into users (email, password, uuid, created, modified)
+		values (?, ?, uuid(), now(), now())
+	`
+	res, err := s.DB.Exec(q, email, hashedPassword)
+	id, _ = res.LastInsertId()
+	return
+}
+
+func (s *Store) doesUserExistByEmail(email string) bool {
+	// flesh this out
+	q := "select count(*) from users where email = ?"
+	var count int
+	s.DB.QueryRow(q, email).Scan(&count)
+	return count > 0
 }
 
 // ValidateAndDecodeAuthClaim will ensure the token provided was signed by us and decode its contents

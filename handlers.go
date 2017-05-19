@@ -49,6 +49,31 @@ func LoginHandler(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// RegisterHandler creates new users.
+func RegisterHandler(res http.ResponseWriter, req *http.Request) {
+	db, _ := GetDBResource()
+
+	email := req.PostFormValue("email")
+	password := req.PostFormValue("password")
+	id, err := users.NewStore(db).Register(
+		users.AuthConfig{
+			LegacySalt: config.LegacySalt,
+			JWTSecret:  config.JWTSecret,
+		},
+		email,
+		password)
+	jsonOut := json.NewEncoder(res)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		jsonOut.Encode(jsonErrorResponse{-1, err.Error()})
+		return
+	}
+	res.WriteHeader(http.StatusOK)
+	jsonOut.Encode(map[string]int64{
+		"id": id,
+	})
+}
+
 // CreateContainerHandler allows creation of a container from a POST method
 // Expected body:
 //   name
