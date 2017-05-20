@@ -10,6 +10,7 @@ import (
 	"github.com/cjsaylor/boxmeup-go/models"
 	"github.com/cjsaylor/boxmeup-go/models/containers"
 	"github.com/cjsaylor/boxmeup-go/models/items"
+	"github.com/cjsaylor/boxmeup-go/models/locations"
 	"github.com/cjsaylor/boxmeup-go/models/users"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
@@ -80,7 +81,8 @@ func RegisterHandler(res http.ResponseWriter, req *http.Request) {
 func CreateContainerHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := GetDBResource()
 	defer db.Close()
-	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
+	var userKey userKey = "user"
+	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
 	user, err := users.NewStore(db).ByID(userID)
 	jsonOut := json.NewEncoder(res)
 	if err != nil {
@@ -110,7 +112,8 @@ func UpdateContainerHandler(res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	db, _ := GetDBResource()
 	defer db.Close()
-	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
+	var userKey userKey = "user"
+	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
 	containerModel := containers.NewStore(db)
 	containerID, _ := strconv.Atoi(vars["id"])
 	container, err := containerModel.ByID(int64(containerID))
@@ -141,7 +144,8 @@ func DeleteContainerHandler(res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	db, _ := GetDBResource()
 	defer db.Close()
-	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
+	var userKey userKey = "user"
+	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
 	containerModel := containers.NewStore(db)
 	containerID, _ := strconv.Atoi(vars["id"])
 	container, err := containerModel.ByID(int64(containerID))
@@ -170,7 +174,8 @@ func ContainerHandler(res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	db, _ := GetDBResource()
 	defer db.Close()
-	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
+	var userKey userKey = "user"
+	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
 	containerID, _ := strconv.Atoi(vars["id"])
 	container, err := containers.NewStore(db).ByID(int64(containerID))
 	jsonOut := json.NewEncoder(res)
@@ -192,7 +197,8 @@ func ContainerHandler(res http.ResponseWriter, req *http.Request) {
 func ContainersHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := GetDBResource()
 	defer db.Close()
-	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
+	var userKey userKey = "user"
+	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
 	userModel := users.NewStore(db)
 	user, err := userModel.ByID(userID)
 	jsonOut := json.NewEncoder(res)
@@ -217,6 +223,14 @@ func ContainersHandler(res http.ResponseWriter, req *http.Request) {
 	jsonOut.Encode(response)
 }
 
+// ContainerQR will output a QR code png for a specific container.
+func ContainerQR(res http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	// @todo Figure out where this will direct to in the SPA.
+	qrBytes, _ := qrcode.Encode(fmt.Sprintf("%v/container/%v", config.WebHost, vars["id"]), qrcode.Medium, 250)
+	res.Write(qrBytes)
+}
+
 // SaveContainerItemHandler allows creation of a container from a POST method
 // Expected body:
 //   body
@@ -224,7 +238,8 @@ func ContainersHandler(res http.ResponseWriter, req *http.Request) {
 func SaveContainerItemHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := GetDBResource()
 	defer db.Close()
-	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
+	var userKey userKey = "user"
+	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
 	jsonOut := json.NewEncoder(res)
 	vars := mux.Vars(req)
 	containerID, _ := strconv.Atoi(vars["id"])
@@ -282,7 +297,8 @@ func SaveContainerItemHandler(res http.ResponseWriter, req *http.Request) {
 func ContainerItemsHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := GetDBResource()
 	defer db.Close()
-	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
+	var userKey userKey = "user"
+	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
 	jsonOut := json.NewEncoder(res)
 	vars := mux.Vars(req)
 	containerID, _ := strconv.Atoi(vars["id"])
@@ -317,7 +333,8 @@ func ContainerItemsHandler(res http.ResponseWriter, req *http.Request) {
 func DeleteContainerItemHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := GetDBResource()
 	defer db.Close()
-	userID := int64(req.Context().Value("user").(jwt.MapClaims)["id"].(float64))
+	var userKey userKey = "user"
+	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
 	jsonOut := json.NewEncoder(res)
 	vars := mux.Vars(req)
 	itemID, _ := strconv.Atoi(vars["item_id"])
@@ -342,10 +359,67 @@ func DeleteContainerItemHandler(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusNoContent)
 }
 
-// ContainerQR will output a QR code png for a specific container.
-func ContainerQR(res http.ResponseWriter, req *http.Request) {
+// CreateLocationHandler will create a location from user input
+// Expected body:
+//   - name
+//   - address
+func CreateLocationHandler(res http.ResponseWriter, req *http.Request) {
+	db, _ := GetDBResource()
+	defer db.Close()
+	var userKey userKey = "user"
+	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
+	user, err := users.NewStore(db).ByID(userID)
+	jsonOut := json.NewEncoder(res)
+	if err != nil {
+		res.WriteHeader(http.StatusNotFound)
+		jsonOut.Encode(jsonErrorResponse{-1, "Unable to find user to associate this location."})
+		return
+	}
+	location := locations.Location{
+		User:    user,
+		Name:    req.PostFormValue("name"),
+		Address: req.PostFormValue("address"),
+	}
+	err = locations.NewStore(db).Create(&location)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		jsonOut.Encode(jsonErrorResponse{-2, "Unable to store location."})
+		return
+	}
+	res.WriteHeader(http.StatusOK)
+	jsonOut.Encode(map[string]int64{
+		"id": location.ID,
+	})
+}
+
+// UpdateLocationHandler will handle updating location based on user input
+func UpdateLocationHandler(res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	// @todo Figure out where this will direct to in the SPA.
-	qrBytes, _ := qrcode.Encode(fmt.Sprintf("%v/container/%v", config.WebHost, vars["id"]), qrcode.Medium, 250)
-	res.Write(qrBytes)
+	db, _ := GetDBResource()
+	defer db.Close()
+	var userKey userKey = "user"
+	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
+	locationModel := locations.NewStore(db)
+	locationID, _ := strconv.Atoi(vars["id"])
+	location, err := locationModel.ByID(int64(locationID))
+	jsonOut := json.NewEncoder(res)
+	if err != nil {
+		res.WriteHeader(http.StatusNotFound)
+		jsonOut.Encode(jsonErrorResponse{-1, "Location not found."})
+		return
+	}
+	if userID != location.User.ID {
+		res.WriteHeader(http.StatusForbidden)
+		jsonOut.Encode(jsonErrorResponse{-2, "Not allowed to modify this location."})
+		return
+	}
+	location.Name = req.PostFormValue("name")
+	location.Address = req.PostFormValue("address")
+	err = locationModel.Update(&location)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		jsonOut.Encode(jsonErrorResponse{-3, "Failed to update location."})
+		return
+	}
+	res.WriteHeader(http.StatusNoContent)
 }

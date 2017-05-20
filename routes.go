@@ -34,19 +34,19 @@ func authHandler(next http.Handler) http.Handler {
 	fn := func(res http.ResponseWriter, req *http.Request) {
 		authHeader := req.Header.Get("Authorization")
 		if authHeader == "" {
-			http.Error(res, "Authorization required.", 403)
+			http.Error(res, "Authorization required.", 401)
 			return
 		}
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			http.Error(res, "Authorization header must be in the form of: Bearer {token}", 403)
+			http.Error(res, "Authorization header must be in the form of: Bearer {token}", 401)
 			return
 		}
 		claims, err := users.ValidateAndDecodeAuthClaim(parts[1], users.AuthConfig{
 			JWTSecret: config.JWTSecret,
 		})
 		if err != nil {
-			http.Error(res, err.Error(), 403)
+			http.Error(res, err.Error(), 401)
 			return
 		}
 		var userKey userKey = "user"
@@ -108,6 +108,12 @@ var routes = Routes{
 		chain.New(authHandler, jsonResponseHandler).ThenFunc(ContainersHandler),
 	},
 	Route{
+		"ContainerQR",
+		"GET",
+		"/api/container/{id}/qrcode",
+		chain.New(authHandler).ThenFunc(ContainerQR),
+	},
+	Route{
 		"CreateContainerItem",
 		"POST",
 		"/api/container/{id}/item",
@@ -132,9 +138,15 @@ var routes = Routes{
 		chain.New(authHandler, jsonResponseHandler).ThenFunc(DeleteContainerItemHandler),
 	},
 	Route{
-		"ContainerQR",
-		"GET",
-		"/api/container/{id}/qrcode",
-		http.HandlerFunc(ContainerQR),
+		"CreateLocation",
+		"POST",
+		"/api/location",
+		chain.New(authHandler, jsonResponseHandler).ThenFunc(CreateLocationHandler),
+	},
+	Route{
+		"UpdateLocation",
+		"PUT",
+		"/api/location/{id}",
+		chain.New(authHandler, jsonResponseHandler).ThenFunc(UpdateLocationHandler),
 	},
 }
