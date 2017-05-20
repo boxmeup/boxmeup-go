@@ -7,7 +7,7 @@ import (
 	"log"
 
 	"github.com/cjsaylor/boxmeup-go/models"
-	"github.com/cjsaylor/boxmeup-go/models/containers"
+	"github.com/cjsaylor/boxmeup-go/modules/containers"
 )
 
 // Store persists and queries container items

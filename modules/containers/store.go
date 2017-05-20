@@ -8,7 +8,7 @@ import (
 	"errors"
 
 	"github.com/cjsaylor/boxmeup-go/models"
-	"github.com/cjsaylor/boxmeup-go/models/users"
+	"github.com/cjsaylor/boxmeup-go/modules/users"
 )
 
 // QueryLimit is the maximum number of container results per page.

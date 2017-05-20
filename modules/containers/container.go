@@ -3,8 +3,8 @@ package containers
 import (
 	"time"
 
-	"github.com/cjsaylor/boxmeup-go/models/locations"
-	"github.com/cjsaylor/boxmeup-go/models/users"
+	"github.com/cjsaylor/boxmeup-go/modules/locations"
+	"github.com/cjsaylor/boxmeup-go/modules/users"
 )
 
 // Container represents an individual container that will contain items.

@@ -3,7 +3,7 @@ package items
 import (
 	"time"
 
-	"github.com/cjsaylor/boxmeup-go/models/containers"
+	"github.com/cjsaylor/boxmeup-go/modules/containers"
 )
 
 // ContainerItem represents a single item in a container

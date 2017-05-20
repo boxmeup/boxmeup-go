@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/cjsaylor/boxmeup-go/models"
-	"github.com/cjsaylor/boxmeup-go/models/locations"
+	"github.com/cjsaylor/boxmeup-go/modules/locations"
 )
 
 func TestSortableField_String(t *testing.T) {
