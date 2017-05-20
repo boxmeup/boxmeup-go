@@ -1,4 +1,4 @@
-package main
+package routing
 
 import (
 	"encoding/json"
@@ -7,10 +7,12 @@ import (
 
 	"strconv"
 
-	"github.com/cjsaylor/boxmeup-go/models"
+	"github.com/cjsaylor/boxmeup-go/modules/config"
 	"github.com/cjsaylor/boxmeup-go/modules/containers"
+	"github.com/cjsaylor/boxmeup-go/modules/database"
 	"github.com/cjsaylor/boxmeup-go/modules/items"
 	"github.com/cjsaylor/boxmeup-go/modules/locations"
+	"github.com/cjsaylor/boxmeup-go/modules/models"
 	"github.com/cjsaylor/boxmeup-go/modules/users"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
@@ -29,12 +31,12 @@ func IndexHandler(res http.ResponseWriter, req *http.Request) {
 
 // LoginHandler authenticates via email and password
 func LoginHandler(res http.ResponseWriter, req *http.Request) {
-	db, _ := GetDBResource()
+	db, _ := database.GetDBResource()
 
 	token, err := users.NewStore(db).Login(
 		users.AuthConfig{
-			LegacySalt: config.LegacySalt,
-			JWTSecret:  config.JWTSecret,
+			LegacySalt: config.Config.LegacySalt,
+			JWTSecret:  config.Config.JWTSecret,
 		},
 		req.PostFormValue("email"),
 		req.PostFormValue("password"))
@@ -52,14 +54,14 @@ func LoginHandler(res http.ResponseWriter, req *http.Request) {
 
 // RegisterHandler creates new users.
 func RegisterHandler(res http.ResponseWriter, req *http.Request) {
-	db, _ := GetDBResource()
+	db, _ := database.GetDBResource()
 
 	email := req.PostFormValue("email")
 	password := req.PostFormValue("password")
 	id, err := users.NewStore(db).Register(
 		users.AuthConfig{
-			LegacySalt: config.LegacySalt,
-			JWTSecret:  config.JWTSecret,
+			LegacySalt: config.Config.LegacySalt,
+			JWTSecret:  config.Config.JWTSecret,
 		},
 		email,
 		password)
@@ -79,7 +81,7 @@ func RegisterHandler(res http.ResponseWriter, req *http.Request) {
 // Expected body:
 //   name
 func CreateContainerHandler(res http.ResponseWriter, req *http.Request) {
-	db, _ := GetDBResource()
+	db, _ := database.GetDBResource()
 	defer db.Close()
 	var userKey userKey = "user"
 	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
@@ -110,7 +112,7 @@ func CreateContainerHandler(res http.ResponseWriter, req *http.Request) {
 // @todo add support for updating the location ID
 func UpdateContainerHandler(res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	db, _ := GetDBResource()
+	db, _ := database.GetDBResource()
 	defer db.Close()
 	var userKey userKey = "user"
 	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
@@ -140,9 +142,10 @@ func UpdateContainerHandler(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusNoContent)
 }
 
+// DeleteContainerHandler removes a container on request of the user
 func DeleteContainerHandler(res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	db, _ := GetDBResource()
+	db, _ := database.GetDBResource()
 	defer db.Close()
 	var userKey userKey = "user"
 	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
@@ -172,7 +175,7 @@ func DeleteContainerHandler(res http.ResponseWriter, req *http.Request) {
 // ContainerHandler gets a specific container by ID
 func ContainerHandler(res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	db, _ := GetDBResource()
+	db, _ := database.GetDBResource()
 	defer db.Close()
 	var userKey userKey = "user"
 	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
@@ -195,7 +198,7 @@ func ContainerHandler(res http.ResponseWriter, req *http.Request) {
 
 // ContainersHandler gets all user containers
 func ContainersHandler(res http.ResponseWriter, req *http.Request) {
-	db, _ := GetDBResource()
+	db, _ := database.GetDBResource()
 	defer db.Close()
 	var userKey userKey = "user"
 	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
@@ -227,7 +230,7 @@ func ContainersHandler(res http.ResponseWriter, req *http.Request) {
 func ContainerQR(res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	// @todo Figure out where this will direct to in the SPA.
-	qrBytes, _ := qrcode.Encode(fmt.Sprintf("%v/container/%v", config.WebHost, vars["id"]), qrcode.Medium, 250)
+	qrBytes, _ := qrcode.Encode(fmt.Sprintf("%v/container/%v", config.Config.WebHost, vars["id"]), qrcode.Medium, 250)
 	res.Write(qrBytes)
 }
 
@@ -236,7 +239,7 @@ func ContainerQR(res http.ResponseWriter, req *http.Request) {
 //   body
 //   quantity
 func SaveContainerItemHandler(res http.ResponseWriter, req *http.Request) {
-	db, _ := GetDBResource()
+	db, _ := database.GetDBResource()
 	defer db.Close()
 	var userKey userKey = "user"
 	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
@@ -295,7 +298,7 @@ func SaveContainerItemHandler(res http.ResponseWriter, req *http.Request) {
 // ContainerItemsHandler is an interface into items of a container
 // @todo Consider syncing some of the non-related queries to go routines
 func ContainerItemsHandler(res http.ResponseWriter, req *http.Request) {
-	db, _ := GetDBResource()
+	db, _ := database.GetDBResource()
 	defer db.Close()
 	var userKey userKey = "user"
 	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
@@ -331,7 +334,7 @@ func ContainerItemsHandler(res http.ResponseWriter, req *http.Request) {
 
 // DeleteContainerItemHandler will remove an item from a container and update the container count.
 func DeleteContainerItemHandler(res http.ResponseWriter, req *http.Request) {
-	db, _ := GetDBResource()
+	db, _ := database.GetDBResource()
 	defer db.Close()
 	var userKey userKey = "user"
 	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
@@ -364,7 +367,7 @@ func DeleteContainerItemHandler(res http.ResponseWriter, req *http.Request) {
 //   - name
 //   - address
 func CreateLocationHandler(res http.ResponseWriter, req *http.Request) {
-	db, _ := GetDBResource()
+	db, _ := database.GetDBResource()
 	defer db.Close()
 	var userKey userKey = "user"
 	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
@@ -395,7 +398,7 @@ func CreateLocationHandler(res http.ResponseWriter, req *http.Request) {
 // UpdateLocationHandler will handle updating location based on user input
 func UpdateLocationHandler(res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
-	db, _ := GetDBResource()
+	db, _ := database.GetDBResource()
 	defer db.Close()
 	var userKey userKey = "user"
 	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))

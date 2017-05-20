@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/cjsaylor/boxmeup-go/models"
 	"github.com/cjsaylor/boxmeup-go/modules/containers"
+	"github.com/cjsaylor/boxmeup-go/modules/models"
 )
 
 // Store persists and queries container items

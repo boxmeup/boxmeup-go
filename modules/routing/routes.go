@@ -1,10 +1,11 @@
-package main
+package routing
 
 import (
 	"context"
 	"net/http"
 	"strings"
 
+	"github.com/cjsaylor/boxmeup-go/modules/config"
 	"github.com/cjsaylor/boxmeup-go/modules/users"
 	chain "github.com/justinas/alice"
 )
@@ -43,7 +44,7 @@ func authHandler(next http.Handler) http.Handler {
 			return
 		}
 		claims, err := users.ValidateAndDecodeAuthClaim(parts[1], users.AuthConfig{
-			JWTSecret: config.JWTSecret,
+			JWTSecret: config.Config.JWTSecret,
 		})
 		if err != nil {
 			http.Error(res, err.Error(), 401)

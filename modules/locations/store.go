@@ -5,7 +5,7 @@ import (
 
 	"errors"
 
-	"github.com/cjsaylor/boxmeup-go/models"
+	"github.com/cjsaylor/boxmeup-go/modules/models"
 	"github.com/cjsaylor/boxmeup-go/modules/users"
 )
 
