@@ -22,11 +22,15 @@ type Store struct {
 	DB *sql.DB
 }
 
+// SortableField represents a field that is sortable
 type SortableField int
 
 const (
+	// SortFieldModified indicates ordering by modified
 	SortFieldModified SortableField = iota
+	// SortFieldName indicates ordering by name
 	SortFieldName
+	// SortFieldContainerCount indicates ordering by container count
 	SortFieldContainerCount
 )
 
@@ -76,6 +80,13 @@ func (l *Store) Update(location *Location) error {
 		update locations set name = ?, address = ?, modified = now() where id = ?
 	`
 	_, err := l.DB.Exec(q, location.Name, location.Address, location.ID)
+	return err
+}
+
+// Delete will remove a location by ID.
+func (l *Store) Delete(ID int64) error {
+	q := "delete from locations where ID = ?"
+	_, err := l.DB.Exec(q, ID)
 	return err
 }
 

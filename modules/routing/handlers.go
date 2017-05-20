@@ -426,3 +426,32 @@ func UpdateLocationHandler(res http.ResponseWriter, req *http.Request) {
 	}
 	res.WriteHeader(http.StatusNoContent)
 }
+
+// DeleteLocationHandler will remove a location upon user request.
+func DeleteLocationHandler(res http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	db, _ := database.GetDBResource()
+	defer db.Close()
+	var userKey userKey = "user"
+	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
+	locationModel := locations.NewStore(db)
+	locationID, _ := strconv.Atoi(vars["id"])
+	location, err := locationModel.ByID(int64(locationID))
+	jsonOut := json.NewEncoder(res)
+	if err != nil {
+		res.WriteHeader(http.StatusNotFound)
+		jsonOut.Encode(jsonErrorResponse{-1, "Location not found."})
+		return
+	}
+	if userID != location.User.ID {
+		res.WriteHeader(http.StatusForbidden)
+		jsonOut.Encode(jsonErrorResponse{-2, "Not allowed to remove this location."})
+		return
+	}
+	err = locationModel.Delete(int64(locationID))
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		jsonOut.Encode(jsonErrorResponse{-3, "Unable to remove location."})
+	}
+	res.WriteHeader(http.StatusNoContent)
+}
