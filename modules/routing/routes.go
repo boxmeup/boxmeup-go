@@ -156,4 +156,10 @@ var routes = Routes{
 		"/api/location/{id}",
 		chain.New(authHandler, jsonResponseHandler).ThenFunc(DeleteLocationHandler),
 	},
+	Route{
+		"Locations",
+		"GET",
+		"/api/location",
+		chain.New(authHandler, jsonResponseHandler).ThenFunc(LocationsHandler),
+	},
 }

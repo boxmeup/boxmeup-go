@@ -2,6 +2,8 @@ package locations
 
 import (
 	"database/sql"
+	"fmt"
+	"log"
 
 	"errors"
 
@@ -40,11 +42,27 @@ var fields = [...]string{
 	"countainer_count",
 }
 
+// PagedResponse contains a group of locations and meta data for pagination
+type PagedResponse struct {
+	Locations     Locations            `json:"locations"`
+	PagedResponse models.PagedResponse `json:"meta"`
+}
+
 func (field SortableField) String() string {
 	return fields[field]
 }
 
-// GetSortBy will retrieve a SortBy object taylored for container queries
+// SortableFieldByName sortable field by name
+func (l *Store) SortableFieldByName(name string) (SortableField, error) {
+	for i, field := range fields {
+		if field == name {
+			return SortableField(i), nil
+		}
+	}
+	return -1, errors.New("sortable field not found")
+}
+
+// GetSortBy will retrieve a SortBy object taylored for location queries
 func (l *Store) GetSortBy(sortField SortableField, direction models.SortType) models.SortBy {
 	var sort models.SortBy
 	if field := fields[sortField]; field != "" {
@@ -111,4 +129,38 @@ func (l *Store) ByID(ID int64) (Location, error) {
 		location.User, err = users.NewStore(l.DB).ByID(userID)
 	}
 	return location, err
+}
+
+// UserLocations will get all containers belonging to a user
+func (l *Store) UserLocations(user users.User, sort models.SortBy, limit models.QueryLimit) (PagedResponse, error) {
+	q := `
+		select SQL_CALC_FOUND_ROWS id, uuid, name, address, container_count, created, modified
+		from locations
+		where user_id = ?
+		order by %v %v
+		limit %v offset %v
+	`
+	q = fmt.Sprintf(q, sort.Field, sort.Direction, limit.Limit, limit.Offset)
+	rows, err := l.DB.Query(q, user.ID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	response := PagedResponse{}
+	defer rows.Close()
+	for rows.Next() {
+		location := Location{}
+		rows.Scan(
+			&location.ID,
+			&location.UUID,
+			&location.Name,
+			&location.Address,
+			&location.ContainerCount,
+			&location.Created,
+			&location.Modified)
+		response.Locations = append(response.Locations, location)
+	}
+	response.PagedResponse.RequestTotal = len(response.Locations)
+	l.DB.QueryRow("select FOUND_ROWS()").Scan(&response.PagedResponse.Total)
+	response.PagedResponse.CalculatePages(limit)
+	return response, rows.Err()
 }

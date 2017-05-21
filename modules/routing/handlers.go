@@ -455,3 +455,42 @@ func DeleteLocationHandler(res http.ResponseWriter, req *http.Request) {
 	}
 	res.WriteHeader(http.StatusNoContent)
 }
+
+// LocationsHandler will retrieve user locations
+func LocationsHandler(res http.ResponseWriter, req *http.Request) {
+	db, _ := database.GetDBResource()
+	defer db.Close()
+	var userKey userKey = "user"
+	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
+	jsonOut := json.NewEncoder(res)
+	params := req.URL.Query()
+	var limit models.QueryLimit
+	page, _ := strconv.Atoi(params.Get("page"))
+	limit.SetPage(page, locations.QueryLimit)
+	locationModel := locations.NewStore(db)
+	var sortField locations.SortableField
+	if userSortField := req.PostFormValue("sort_field"); userSortField != "" {
+		var err error
+		sortField, err = locationModel.SortableFieldByName(userSortField)
+		if err != nil {
+			res.WriteHeader(http.StatusBadRequest)
+			jsonOut.Encode(jsonErrorResponse{-1, "Invalid sort field"})
+			return
+		}
+	}
+	user, err := users.NewStore(db).ByID(int64(userID))
+	if err != nil {
+		res.WriteHeader(http.StatusUnauthorized)
+		jsonOut.Encode(jsonErrorResponse{-2, "User not found."})
+		return
+	}
+	sort := locationModel.GetSortBy(sortField, models.SortType(params.Get("sort_dir")))
+	response, err := locationModel.UserLocations(user, sort, limit)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		jsonOut.Encode(jsonErrorResponse{-3, "Unable to get locations."})
+		return
+	}
+	res.WriteHeader(http.StatusOK)
+	jsonOut.Encode(response)
+}

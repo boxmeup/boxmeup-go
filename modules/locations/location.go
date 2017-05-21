@@ -8,12 +8,15 @@ import (
 
 // Location structure
 type Location struct {
-	ID             int64
-	User           users.User
-	UUID           string
-	Name           string
-	Address        string
-	ContainerCount int
-	Created        time.Time
-	Modified       time.Time
+	ID             int64      `json:"id"`
+	User           users.User `json:"-"`
+	UUID           string     `json:"uuid"`
+	Name           string     `json:"name"`
+	Address        string     `json:"address"`
+	ContainerCount int        `json:"container_count"`
+	Created        time.Time  `json:"created"`
+	Modified       time.Time  `json:"modified"`
 }
+
+// Locations group of locations
+type Locations []Location
