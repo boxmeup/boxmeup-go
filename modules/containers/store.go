@@ -2,11 +2,12 @@ package containers
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
+	"sync"
 
-	"errors"
-
+	"github.com/cjsaylor/boxmeup-go/modules/locations"
 	"github.com/cjsaylor/boxmeup-go/modules/models"
 	"github.com/cjsaylor/boxmeup-go/modules/users"
 )
@@ -43,28 +44,56 @@ func (c *Store) GetSortBy(field string, direction models.SortType) models.SortBy
 }
 
 // Create persists a container to the database
-func (c *Store) Create(container *Container) error {
+func (c *Store) Create(record *ContainerRecord) error {
+	if record.Name == "" {
+		return errors.New("Container must have a name")
+	}
 	q := `
 		insert into containers (user_id, location_id, name, uuid, created, modified)
 		values (?, ?, ?, uuid(), now(), now())
 	`
-	res, err := c.DB.Exec(q, container.User.ID, container.Location.ID, container.Name)
-	container.ID, _ = res.LastInsertId()
+	tx, _ := c.DB.Begin()
+	res, err := tx.Exec(q, record.userID, record.locationID, record.Name)
+	if err == nil && record.locationID > 0 {
+		err = updateContainerCount(tx, record.locationID)
+	}
+	if err == nil {
+		tx.Commit()
+	} else {
+		tx.Rollback()
+	}
+	record.ID, _ = res.LastInsertId()
 
 	return err
 }
 
 // Update a container
-// @todo add support for location updating
-func (c *Store) Update(container *Container) error {
-	if container.ID == 0 {
+func (c *Store) Update(record *ContainerRecord) error {
+	if record.ID == 0 {
 		return errors.New("can not update a container without it first being persisted")
 	}
+	if record.Name == "" {
+		return errors.New("containers must have a name")
+	}
 	q := `
-		update container set name = ?, modified = now()
+		update containers set name = ?, location_id = ?, modified = now()
 		where id = ?
 	`
-	_, err := c.DB.Exec(q, container.Name, container.ID)
+	tx, _ := c.DB.Begin()
+	_, err := tx.Exec(q, record.Name, record.locationID, record.ID)
+	if err == nil {
+		if record.locationID > 0 {
+			err = updateContainerCount(tx, record.locationID)
+		}
+		if err == nil && record.oldLocationID > 0 {
+			err = updateContainerCount(tx, record.oldLocationID)
+		}
+	}
+	if err == nil {
+		tx.Commit()
+	} else {
+		tx.Rollback()
+	}
 	return err
 }
 
@@ -74,7 +103,29 @@ func (c *Store) Update(container *Container) error {
 func (c *Store) Delete(ID int64) error {
 	// Note, the FK has cascade deletion, so this will delete the items as well.
 	q := "delete from containers where id = ?"
-	_, err := c.DB.Exec(q, ID)
+	tx, _ := c.DB.Begin()
+	_, err := tx.Exec(q, ID)
+	if err != nil {
+		err = updateContainerCount(tx, ID)
+	}
+	if err == nil {
+		tx.Commit()
+	} else {
+		tx.Rollback()
+	}
+	return err
+}
+
+// @todo consider moving this to a MySQL trigger
+func updateContainerCount(tx *sql.Tx, locationID int64) error {
+	q := `
+		update locations
+		set container_count = (
+			select count(*) from containers where location_id = ?
+		), modified = now()
+		where id = ?
+	`
+	_, err := tx.Exec(q, locationID, locationID)
 	return err
 }
 
@@ -100,16 +151,31 @@ func (c *Store) ByID(ID int64) (Container, error) {
 	if err != nil {
 		return container, err
 	}
-	userModel := users.NewStore(c.DB)
-	container.User, err = userModel.ByID(userID)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func(userID int64, container *Container) {
+		defer wg.Done()
+		container.User, err = users.NewStore(c.DB).ByID(userID)
+	}(userID, &container)
+	go func(locationID int64, container *Container) {
+		defer wg.Done()
+		location, _ := locations.NewStore(c.DB).ByID(locationID)
+		if location.ID > 0 {
+			container.Location = &location
+		}
+	}(locationID, &container)
+
+	wg.Wait()
 
 	return container, err
 }
 
-// PagedResponse contains a group of containers and meta data for pagination
-type PagedResponse struct {
-	Containers    Containers           `json:"containers"`
-	PagedResponse models.PagedResponse `json:"meta"`
+func (r *PagedResponse) getContainerIDMap() map[int64]*Container {
+	mappedContainers := make(map[int64]*Container)
+	for index, v := range r.Containers {
+		mappedContainers[v.ID] = &r.Containers[index]
+	}
+	return mappedContainers
 }
 
 // UserContainers will get all containers belonging to a user
@@ -128,6 +194,7 @@ func (c *Store) UserContainers(user users.User, sort models.SortBy, limit models
 	}
 	response := PagedResponse{}
 	defer rows.Close()
+	locationIDs := make(map[int64]int64)
 	var locationID int64
 	for rows.Next() {
 		container := Container{}
@@ -139,10 +206,29 @@ func (c *Store) UserContainers(user users.User, sort models.SortBy, limit models
 			&container.ContainerItemCount,
 			&container.Created,
 			&container.Modified)
+		if locationID > 0 {
+			locationIDs[container.ID] = locationID
+		}
 		response.Containers = append(response.Containers, container)
 	}
 	response.PagedResponse.RequestTotal = len(response.Containers)
 	c.DB.QueryRow("select FOUND_ROWS()").Scan(&response.PagedResponse.Total)
+	var wg sync.WaitGroup
+	wg.Add(len(locationIDs))
+	containerMap := response.getContainerIDMap()
+	for k, v := range locationIDs {
+		go func(locationID int64, container *Container) {
+			defer wg.Done()
+			// @todo Instead of doing individual queries, make a query in locations to accept
+			// an array of IDs and do a single query
+			// For the time being this is fine because we limit the maximum results to QueryLimit (20)
+			location, _ := locations.NewStore(c.DB).ByID(locationID)
+			if location.ID > 0 {
+				container.Location = &location
+			}
+		}(v, containerMap[k])
+	}
 	response.PagedResponse.CalculatePages(limit)
+	wg.Wait()
 	return response, rows.Err()
 }

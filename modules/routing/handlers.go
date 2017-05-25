@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-
 	"strconv"
 
 	"github.com/cjsaylor/boxmeup-go/modules/config"
@@ -80,6 +79,7 @@ func RegisterHandler(res http.ResponseWriter, req *http.Request) {
 // CreateContainerHandler allows creation of a container from a POST method
 // Expected body:
 //   name
+//   location_id (optional)
 func CreateContainerHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := database.GetDBResource()
 	defer db.Close()
@@ -92,24 +92,40 @@ func CreateContainerHandler(res http.ResponseWriter, req *http.Request) {
 		jsonOut.Encode(jsonErrorResponse{-1, "User specified not found."})
 		return
 	}
-	container := containers.Container{
-		User: user,
-		Name: req.PostFormValue("name"),
+	record := containers.NewRecord(&user)
+	record.Name = req.PostFormValue("name")
+	if userLocationID := req.PostFormValue("location_id"); userLocationID != "" {
+		locationID, _ := strconv.Atoi(userLocationID)
+		location, err := locations.NewStore(db).ByID(int64(locationID))
+		if err != nil {
+			res.WriteHeader(http.StatusNotFound)
+			jsonOut.Encode(jsonErrorResponse{-5, "Location not found."})
+			return
+		} else if location.User.ID != userID {
+			res.WriteHeader(http.StatusForbidden)
+			jsonOut.Encode(jsonErrorResponse{-3, "Not allowed to attach supplied location to this container."})
+			return
+		}
+		record.SetLocation(&location)
+	} else {
+		record.SetLocation(nil)
 	}
-	err = containers.NewStore(db).Create(&container)
+	err = containers.NewStore(db).Create(&record)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		jsonOut.Encode(jsonErrorResponse{-2, "Failed to create the container."})
 	} else {
 		res.WriteHeader(http.StatusOK)
 		jsonOut.Encode(map[string]int64{
-			"id": container.ID,
+			"id": record.ID,
 		})
 	}
 }
 
 // UpdateContainerHandler exposes updating a container
-// @todo add support for updating the location ID
+// @todo consider a new endpoint for just location attachment/detachment and remove location editing here
+// -> PUT /api/container/<id>/location/<location_id>
+// -> DELETE /api/container/<id>/location
 func UpdateContainerHandler(res http.ResponseWriter, req *http.Request) {
 	vars := mux.Vars(req)
 	db, _ := database.GetDBResource()
@@ -130,13 +146,28 @@ func UpdateContainerHandler(res http.ResponseWriter, req *http.Request) {
 		jsonOut.Encode(jsonErrorResponse{-2, "Not allowed to edit this container."})
 		return
 	}
-	if name := req.PostFormValue("name"); name != "" {
-		container.Name = name
+	record := container.ToRecord()
+	record.Name = req.PostFormValue("name")
+	if userLocationID := req.PostFormValue("location_id"); userLocationID != "" {
+		locationID, _ := strconv.Atoi(userLocationID)
+		location, err := locations.NewStore(db).ByID(int64(locationID))
+		if err != nil {
+			res.WriteHeader(http.StatusNotFound)
+			jsonOut.Encode(jsonErrorResponse{-5, "Location not found."})
+			return
+		} else if location.User.ID != userID {
+			res.WriteHeader(http.StatusForbidden)
+			jsonOut.Encode(jsonErrorResponse{-3, "Not allowed to attach supplied location to this container."})
+			return
+		}
+		record.SetLocation(&location)
+	} else {
+		record.SetLocation(nil)
 	}
-	err = containerModel.Update(&container)
+	err = containerModel.Update(&record)
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
-		jsonOut.Encode(jsonErrorResponse{-3, "Error updating the container."})
+		jsonOut.Encode(jsonErrorResponse{-4, err.Error()})
 		return
 	}
 	res.WriteHeader(http.StatusNoContent)
