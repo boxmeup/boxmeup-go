@@ -1,0 +1,21 @@
+dist: trusty
+sudo: false
+language: go
+
+go:
+  - 1.x
+  - 1.8
+
+services:
+  - docker
+
+before_install:
+  - docker pull mysql:5.7
+  - docker run -d -p 127.0.0.1:3307:3306 --name mysqld -e MYSQL_DATABASE=gotest -e MYSQL_USER=gotest -e MYSQL_PASSWORD=secret -e MYSQL_ROOT_PASSWORD=verysecret mysql:5.7
+  - sleep 30
+
+before_script:
+  - export MYSQL_DSN="gotest:secret@tcp(127.0.0.1:3307)/gotest"
+  - mysql -e 'CREATE DATABASE IF NOT EXISTS gotest;'
+
+script: go test -v
