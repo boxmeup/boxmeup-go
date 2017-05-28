@@ -121,16 +121,16 @@ var routes = Routes{
 		chain.New(authHandler, jsonResponseHandler).ThenFunc(SaveContainerItemHandler),
 	},
 	Route{
-		"Items",
-		"GET",
-		"/api/container/{id}/item",
-		chain.New(authHandler, jsonResponseHandler).ThenFunc(ContainerItemsHandler),
-	},
-	Route{
 		"DeleteItems",
 		"DELETE",
 		"/api/container/{id}/item/{item_id}",
 		chain.New(authHandler, jsonResponseHandler).ThenFunc(DeleteContainerItemHandler),
+	},
+	Route{
+		"Items",
+		"GET",
+		"/api/container/{id}/item",
+		chain.New(authHandler, jsonResponseHandler).ThenFunc(ContainerItemsHandler),
 	},
 	Route{
 		"CreateLocation",
