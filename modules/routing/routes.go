@@ -133,6 +133,12 @@ var routes = Routes{
 		chain.New(authHandler, jsonResponseHandler).ThenFunc(ContainerItemsHandler),
 	},
 	Route{
+		"Items",
+		"GET",
+		"/api/item/search",
+		chain.New(authHandler, jsonResponseHandler).ThenFunc(SearchItemHandler),
+	},
+	Route{
 		"CreateLocation",
 		"POST",
 		"/api/location",

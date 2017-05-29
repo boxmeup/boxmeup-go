@@ -14,7 +14,7 @@ type ContainerItem struct {
 	Body      string                `json:"body"`
 	Quantity  int                   `json:"quantity"`
 	Created   time.Time             `json:"created"`
-	Modifed   time.Time             `json:"modifed"`
+	Modified  time.Time             `json:"modifed"`
 }
 
 // ContainerItems is a collection of container items.

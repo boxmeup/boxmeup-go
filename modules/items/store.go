@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/cjsaylor/boxmeup-go/modules/containers"
 	"github.com/cjsaylor/boxmeup-go/modules/models"
@@ -108,6 +109,14 @@ type PagedResponse struct {
 	PagedResponse models.PagedResponse `json:"paged_response"`
 }
 
+func (r *PagedResponse) getItemIDMap() map[int64]*ContainerItem {
+	mappedItems := make(map[int64]*ContainerItem)
+	for index, v := range r.Items {
+		mappedItems[v.ID] = &r.Items[index]
+	}
+	return mappedItems
+}
+
 // ByID retrieves an item by its ID
 func (c *Store) ByID(ID int64) (ContainerItem, error) {
 	q := `
@@ -117,7 +126,7 @@ func (c *Store) ByID(ID int64) (ContainerItem, error) {
 	`
 	item := ContainerItem{}
 	var containerID int64
-	err := c.DB.QueryRow(q, ID).Scan(&item.ID, &containerID, &item.UUID, &item.Body, &item.Quantity, &item.Created, &item.Modifed)
+	err := c.DB.QueryRow(q, ID).Scan(&item.ID, &containerID, &item.UUID, &item.Body, &item.Quantity, &item.Created, &item.Modified)
 	if err != nil {
 		return item, err
 	}
@@ -146,7 +155,7 @@ func (c *Store) GetContainerItems(container *containers.Container, sort models.S
 	response := PagedResponse{}
 	for rows.Next() {
 		item := ContainerItem{}
-		rows.Scan(&item.ID, &item.UUID, &item.Body, &item.Quantity, &item.Created, &item.Modifed)
+		rows.Scan(&item.ID, &item.UUID, &item.Body, &item.Quantity, &item.Created, &item.Modified)
 		item.Container = container
 		response.Items = append(response.Items, item)
 	}
@@ -154,4 +163,50 @@ func (c *Store) GetContainerItems(container *containers.Container, sort models.S
 	c.DB.QueryRow("select FOUND_ROWS()").Scan(&response.PagedResponse.Total)
 	response.PagedResponse.CalculatePages(limit)
 	return response, rows.Err()
+}
+
+func (c *Store) SearchItems(userID int64, term string, sort models.SortBy, limit models.QueryLimit) (PagedResponse, error) {
+	q := `
+		select ci.id, container_id, ci.uuid, body, quantity, ci.created, ci.modified
+		from container_items ci
+		inner join containers c on c.id = ci.container_id and c.user_id = ?
+		where body like concat('%%', ?, '%%')
+		order by %v %v
+		limit %v offset %v
+	`
+	q = fmt.Sprintf(q, sort.Field, sort.Direction, limit.Limit, limit.Offset)
+	rows, err := c.DB.Query(q, userID, term)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+	response := PagedResponse{}
+	containerIDs := make(map[int64]int64)
+	for rows.Next() {
+		item := ContainerItem{}
+		var containerID int64
+		rows.Scan(&item.ID, &containerID, &item.UUID, &item.Body, &item.Quantity, &item.Created, &item.Modified)
+		containerIDs[item.ID] = containerID
+		response.Items = append(response.Items, item)
+	}
+	response.PagedResponse.RequestTotal = len(response.Items)
+	c.DB.QueryRow("select FOUND_ROWS()").Scan(&response.PagedResponse.Total)
+	var wg sync.WaitGroup
+	wg.Add(len(containerIDs))
+	itemMap := response.getItemIDMap()
+	containerModel := containers.NewStore(c.DB)
+	for k, v := range containerIDs {
+		go func(containerID int64, item *ContainerItem) {
+			defer wg.Done()
+			// @todo Instead of doing individual queries, make a query in containers to accept
+			// an array of IDs and do a single query
+			// For the time being this is fine because we limit the maximum results to QueryLimit (20)
+			container, _ := containerModel.ByID(containerID)
+			item.Container = &container
+		}(v, itemMap[k])
+	}
+	response.PagedResponse.CalculatePages(limit)
+	wg.Wait()
+	return response, rows.Err()
+
 }

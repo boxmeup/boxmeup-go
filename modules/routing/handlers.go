@@ -302,6 +302,36 @@ func SaveContainerItemHandler(res http.ResponseWriter, req *http.Request) {
 	})
 }
 
+// DeleteContainerItemHandler will remove an item from a container and update the container count.
+func DeleteContainerItemHandler(res http.ResponseWriter, req *http.Request) {
+	db, _ := database.GetDBResource()
+	defer db.Close()
+	var userKey userKey = "user"
+	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
+	jsonOut := json.NewEncoder(res)
+	vars := mux.Vars(req)
+	itemID, _ := strconv.Atoi(vars["item_id"])
+	itemModel := items.NewStore(db)
+	item, err := itemModel.ByID(int64(itemID))
+	if err != nil {
+		res.WriteHeader(http.StatusNotFound)
+		jsonOut.Encode(jsonErrorResponse{-1, "Item not found."})
+		return
+	}
+	if item.Container.User.ID != userID {
+		res.WriteHeader(http.StatusForbidden)
+		jsonOut.Encode(jsonErrorResponse{-2, "Not allowed to delete this item."})
+		return
+	}
+	err = itemModel.Delete(item)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		jsonOut.Encode(jsonErrorResponse{-3, "Unable to delete this item."})
+		return
+	}
+	res.WriteHeader(http.StatusNoContent)
+}
+
 // ContainerItemsHandler is an interface into items of a container
 // @todo Consider syncing some of the non-related queries to go routines
 func ContainerItemsHandler(res http.ResponseWriter, req *http.Request) {
@@ -339,34 +369,32 @@ func ContainerItemsHandler(res http.ResponseWriter, req *http.Request) {
 	jsonOut.Encode(response)
 }
 
-// DeleteContainerItemHandler will remove an item from a container and update the container count.
-func DeleteContainerItemHandler(res http.ResponseWriter, req *http.Request) {
+func SearchItemHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := database.GetDBResource()
 	defer db.Close()
 	var userKey userKey = "user"
 	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
+	params := req.URL.Query()
+	var limit models.QueryLimit
+	term := params.Get("term")
 	jsonOut := json.NewEncoder(res)
-	vars := mux.Vars(req)
-	itemID, _ := strconv.Atoi(vars["item_id"])
+	if term == "" {
+		res.WriteHeader(http.StatusBadRequest)
+		jsonOut.Encode(jsonErrorResponse{-1, "Must provide a search term."})
+		return
+	}
+	page, _ := strconv.Atoi(params.Get("page"))
+	limit.SetPage(page, containers.QueryLimit)
 	itemModel := items.NewStore(db)
-	item, err := itemModel.ByID(int64(itemID))
+	sort := itemModel.GetSortBy(params.Get("sort_field"), models.SortType(params.Get("sort_dir")))
+	response, err := itemModel.SearchItems(int64(userID), term, sort, limit)
 	if err != nil {
-		res.WriteHeader(http.StatusNotFound)
-		jsonOut.Encode(jsonErrorResponse{-1, "Item not found."})
+		res.WriteHeader(http.StatusBadRequest)
+		jsonOut.Encode(jsonErrorResponse{-2, "Unable to retrieve items."})
 		return
 	}
-	if item.Container.User.ID != userID {
-		res.WriteHeader(http.StatusForbidden)
-		jsonOut.Encode(jsonErrorResponse{-2, "Not allowed to delete this item."})
-		return
-	}
-	err = itemModel.Delete(item)
-	if err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-		jsonOut.Encode(jsonErrorResponse{-3, "Unable to delete this item."})
-		return
-	}
-	res.WriteHeader(http.StatusNoContent)
+	res.WriteHeader(http.StatusOK)
+	jsonOut.Encode(response)
 }
 
 // CreateLocationHandler will create a location from user input
