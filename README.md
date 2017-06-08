@@ -26,7 +26,7 @@ See `.env.sample` for available configurations.
 
 Dependencies are committed into the repo via `godeps`, so no `go install` required.
 
-To build: `go build`
+To build: `go build -o server ./bin`
 
 To add a dependency:
 
