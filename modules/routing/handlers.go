@@ -203,6 +203,30 @@ func DeleteContainerHandler(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusNoContent)
 }
 
+// ContainerHandler gets a specific container by ID
+func ContainerHandler(res http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	db, _ := database.GetDBResource()
+	defer db.Close()
+	var userKey userKey = "user"
+	userID := int64(req.Context().Value(userKey).(jwt.MapClaims)["id"].(float64))
+	containerID, _ := strconv.Atoi(vars["id"])
+	container, err := containers.NewStore(db).ByID(int64(containerID))
+	jsonOut := json.NewEncoder(res)
+	if err != nil {
+		res.WriteHeader(http.StatusNotFound)
+		jsonOut.Encode(jsonErrorResponse{-1, "Container not found."})
+		return
+	}
+	if container.User.ID != userID {
+		res.WriteHeader(http.StatusForbidden)
+		jsonOut.Encode(jsonErrorResponse{-2, "Not allowed to view this container."})
+		return
+	}
+	res.WriteHeader(http.StatusOK)
+	jsonOut.Encode(container)
+}
+
 // ContainersHandler gets all user containers
 func ContainersHandler(res http.ResponseWriter, req *http.Request) {
 	db, _ := database.GetDBResource()

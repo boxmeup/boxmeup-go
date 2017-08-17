@@ -135,6 +135,12 @@ var routes = Routes{
 		chain.New(logHandler, authHandler, jsonResponseHandler).ThenFunc(DeleteContainerHandler),
 	},
 	Route{
+		"Container",
+		"GET",
+		"/api/container/{id}",
+		chain.New(authHandler, jsonResponseHandler).ThenFunc(ContainerHandler),
+	},
+	Route{
 		"Containers",
 		"GET",
 		"/api/container",
