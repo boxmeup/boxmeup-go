@@ -28,8 +28,10 @@ type Store struct {
 type SortableField int
 
 const (
+	// SortFieldID indicates ordering by ID
+	SortFieldID SortableField = iota
 	// SortFieldModified indicates ordering by modified
-	SortFieldModified SortableField = iota
+	SortFieldModified
 	// SortFieldName indicates ordering by name
 	SortFieldName
 	// SortFieldContainerCount indicates ordering by container count
@@ -37,6 +39,7 @@ const (
 )
 
 var fields = [...]string{
+	"id",
 	"modified",
 	"name",
 	"countainer_count",
