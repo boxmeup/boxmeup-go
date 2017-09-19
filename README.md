@@ -12,6 +12,12 @@ Boxmeup is a web and mobile application to help users keep track of what they ha
 ## Setup
 
 ```bash
+cp docker-compose-dev.yml docker-compose.yml
+```
+
+Modify the docker compose file to suit needs.
+
+```bash
 docker-compose up -d
 ```
 
@@ -27,7 +33,7 @@ See `.env.sample` for available configurations.
 In order to run tests you will need to prepare your MySQL db by running the [`schema.sql`](./schema.sql) on the MySQL db you plan to use. If you use the docker provided MySQL image specified in the `docker-compose.yml` file, you can run (on the running server):
 
 ```bash
-cat schema.sql | docker exec -i $(dc ps -q mysql) mysql boxmeup -u boxmeup -pboxmeup
+cat schema.sql | docker exec -i $(docker-compose ps -q mysql) mysql boxmeup -u boxmeup -pboxmeup
 ```
 
 Create a user:
