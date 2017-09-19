@@ -14,7 +14,7 @@ type Container struct {
 	User               users.User          `json:"-"`
 	Name               string              `json:"name"`
 	UUID               string              `json:"uuid"`
-	Location           *locations.Location `json:"location,omitempty"`
+	Location           *locations.Location `json:"location"`
 	ContainerItemCount int                 `json:"container_item_count"`
 	Created            time.Time           `json:"created"`
 	Modified           time.Time           `json:"modified"`
@@ -26,6 +26,19 @@ type ContainerRecord struct {
 	locationID    int64
 	oldLocationID int64
 	Name          string
+}
+
+type ContainerFilter struct {
+	User        users.User
+	LocationIDs []int64
+}
+
+func (f *ContainerFilter) GenericLocationIDList() []interface{} {
+	list := make([]interface{}, len(f.LocationIDs))
+	for i, val := range f.LocationIDs {
+		list[i] = val
+	}
+	return list
 }
 
 // PagedResponse contains a group of containers and meta data for pagination

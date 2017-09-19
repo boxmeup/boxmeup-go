@@ -247,7 +247,11 @@ func ContainersHandler(res http.ResponseWriter, req *http.Request) {
 	limit.SetPage(page, containers.QueryLimit)
 	containerModel := containers.NewStore(db)
 	sort := containerModel.GetSortBy(params.Get("sort_field"), models.SortType(params.Get("sort_dir")))
-	response, err := containerModel.UserContainers(user, sort, limit)
+	filter := containers.ContainerFilter{
+		User:        user,
+		LocationIDs: []int64{},
+	}
+	response, err := containerModel.FilteredContainers(filter, sort, limit)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		jsonOut.Encode(jsonErrorResponse{-2, "Unable to retrieve containers."})

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/cjsaylor/boxmeup-go/modules/locations"
@@ -178,17 +179,23 @@ func (r *PagedResponse) getContainerIDMap() map[int64]*Container {
 	return mappedContainers
 }
 
-// UserContainers will get all containers belonging to a user
-func (c *Store) UserContainers(user users.User, sort models.SortBy, limit models.QueryLimit) (PagedResponse, error) {
+// FilteredContainers will retrieve paginated list of containers with provided filter params.
+func (c *Store) FilteredContainers(filter ContainerFilter, sort models.SortBy, limit models.QueryLimit) (PagedResponse, error) {
 	q := `
 		select SQL_CALC_FOUND_ROWS id, location_id, name, uuid, container_item_count, created, modified
 		from containers
-		where user_id = ?
+		where user_id = ? %v
 		order by %v %v
 		limit %v offset %v
 	`
-	q = fmt.Sprintf(q, sort.Field, sort.Direction, limit.Limit, limit.Offset)
-	rows, err := c.DB.Query(q, user.ID)
+	locationIDQueryModifier := ""
+	queryArgs := []interface{}{filter.User.ID}
+	if len(filter.LocationIDs) > 0 {
+		locationIDQueryModifier = "and location_id in (?" + strings.Repeat(",?", len(filter.LocationIDs)-1) + ")"
+		queryArgs = append(queryArgs, filter.GenericLocationIDList()...)
+	}
+	q = fmt.Sprintf(q, locationIDQueryModifier, sort.Field, sort.Direction, limit.Limit, limit.Offset)
+	rows, err := c.DB.Query(q, queryArgs...)
 	if err != nil {
 		log.Fatal(err)
 	}
