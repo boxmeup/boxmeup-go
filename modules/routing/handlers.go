@@ -532,7 +532,7 @@ func LocationsHandler(res http.ResponseWriter, req *http.Request) {
 	limit.SetPage(page, locations.QueryLimit)
 	locationModel := locations.NewStore(db)
 	var sortField locations.SortableField
-	if userSortField := req.PostFormValue("sort_field"); userSortField != "" {
+	if userSortField := params.Get("sort_field"); userSortField != "" {
 		var err error
 		sortField, err = locationModel.SortableFieldByName(userSortField)
 		if err != nil {
@@ -548,7 +548,11 @@ func LocationsHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	sort := locationModel.GetSortBy(sortField, models.SortType(params.Get("sort_dir")))
-	response, err := locationModel.UserLocations(user, sort, limit)
+	filter := locations.LocationFilter{
+		User: user,
+		IsAttachedToContainer: params.Get("is_attached_to_container") == "T",
+	}
+	response, err := locationModel.FilteredLocations(filter, sort, limit)
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 		jsonOut.Encode(jsonErrorResponse{-3, "Unable to get locations."})

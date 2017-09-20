@@ -182,14 +182,17 @@ func TestStore_Delete(t *testing.T) {
 	}
 }
 
-func TestStore_UserLocations(t *testing.T) {
+func TestStore_FilteredLocations(t *testing.T) {
 	locationModel := locations.NewStore(db)
 	sort := locationModel.GetSortBy(locations.SortFieldModified, models.ASC)
 	limit := models.QueryLimit{
 		Limit:  1,
 		Offset: 1,
 	}
-	result, err := locationModel.UserLocations(users.User{ID: 1}, sort, limit)
+	filter := locations.LocationFilter{
+		User: users.User{ID: 1},
+	}
+	result, err := locationModel.FilteredLocations(filter, sort, limit)
 	if err != nil {
 		t.Error(err)
 		return

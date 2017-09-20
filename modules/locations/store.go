@@ -134,17 +134,24 @@ func (l *Store) ByID(ID int64) (Location, error) {
 	return location, err
 }
 
-// UserLocations will get all containers belonging to a user
-func (l *Store) UserLocations(user users.User, sort models.SortBy, limit models.QueryLimit) (PagedResponse, error) {
+// FilteredLocations will get all containers belonging to a user with filters
+func (l *Store) FilteredLocations(filter LocationFilter, sort models.SortBy, limit models.QueryLimit) (PagedResponse, error) {
 	q := `
 		select SQL_CALC_FOUND_ROWS id, uuid, name, address, container_count, created, modified
 		from locations
 		where user_id = ?
+		%v
 		order by %v %v
 		limit %v offset %v
 	`
-	q = fmt.Sprintf(q, sort.Field, sort.Direction, limit.Limit, limit.Offset)
-	rows, err := l.DB.Query(q, user.ID)
+	var mustBeAttachedFragment string
+	if filter.IsAttachedToContainer {
+		mustBeAttachedFragment = "and container_count > 0"
+	} else {
+		mustBeAttachedFragment = ""
+	}
+	q = fmt.Sprintf(q, mustBeAttachedFragment, sort.Field, sort.Direction, limit.Limit, limit.Offset)
+	rows, err := l.DB.Query(q, filter.User.ID)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -20,3 +20,9 @@ type Location struct {
 
 // Locations group of locations
 type Locations []Location
+
+type LocationFilter struct {
+	User                  users.User
+	ContainerID           int64
+	IsAttachedToContainer bool
+}
