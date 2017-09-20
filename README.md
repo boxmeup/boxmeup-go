@@ -33,7 +33,10 @@ See `.env.sample` for available configurations.
 In order to run tests you will need to prepare your MySQL db by running the [`schema.sql`](./schema.sql) on the MySQL db you plan to use. If you use the docker provided MySQL image specified in the `docker-compose.yml` file, you can run (on the running server):
 
 ```bash
+# For local development
 cat schema.sql | docker exec -i $(docker-compose ps -q mysql) mysql boxmeup -u boxmeup -pboxmeup
+# For running unit tests
+cat schema.sql | docker exec -i $(docker-compose ps -q mysql) mysql bmu_test -u root -psupersecret
 ```
 
 Create a user:
