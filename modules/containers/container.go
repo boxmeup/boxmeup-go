@@ -30,7 +30,7 @@ type ContainerRecord struct {
 
 type ContainerFilter struct {
 	User        users.User
-	LocationIDs []int64
+	LocationIDs []string
 }
 
 func (f *ContainerFilter) GenericLocationIDList() []interface{} {

@@ -249,7 +249,7 @@ func ContainersHandler(res http.ResponseWriter, req *http.Request) {
 	sort := containerModel.GetSortBy(params.Get("sort_field"), models.SortType(params.Get("sort_dir")))
 	filter := containers.ContainerFilter{
 		User:        user,
-		LocationIDs: []int64{},
+		LocationIDs: params["location_id"],
 	}
 	response, err := containerModel.FilteredContainers(filter, sort, limit)
 	if err != nil {
